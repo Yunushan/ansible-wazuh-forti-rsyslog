@@ -70,6 +70,11 @@ forti_wazuh_filebeat_archives_paths:
   - /var/ossec/logs/archives/archives.json
 forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
 forti_wazuh_filebeat_inputs_manage: true
+forti_wazuh_filebeat_inputs_dir: /etc/filebeat/inputs.d
+forti_wazuh_filebeat_inputs_file: /etc/filebeat/inputs.d/wazuh-archives.yml
+forti_wazuh_filebeat_inputs_glob: /etc/filebeat/inputs.d/*.yml
+forti_wazuh_filebeat_inputs_reload: false
+forti_wazuh_filebeat_input_type: log
 forti_wazuh_filebeat_restart: true
 forti_filebeat_service_name: filebeat
 
