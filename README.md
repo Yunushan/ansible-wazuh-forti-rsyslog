@@ -134,6 +134,8 @@ This project configures **logrotate**.
 | `forti_rsyslog_healthcheck` | `true` | Run rsyslog health checks after configuration |
 | `forti_rsyslog_healthcheck_fail` | `true` | Fail the play on health check issues (set `false` to warn only) |
 | `forti_rsyslog_healthcheck_delay` | `2` | Seconds to wait after handler flush before checking listeners |
+| `forti_rsyslog_healthcheck_retries` | `5` | Listener check retries (helps avoid transient false negatives) |
+| `forti_rsyslog_healthcheck_retry_delay` | `1` | Seconds to wait between listener retries |
 
 ---
 

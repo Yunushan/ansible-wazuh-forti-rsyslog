@@ -46,6 +46,9 @@ forti_rsyslog_healthcheck: true
 forti_rsyslog_healthcheck_fail: true
 # Delay (seconds) before checking listeners after handler flush.
 forti_rsyslog_healthcheck_delay: 2
+# Retry settings to avoid transient listener checks.
+forti_rsyslog_healthcheck_retries: 5
+forti_rsyslog_healthcheck_retry_delay: 1
 
 # --- Wazuh integration ---
 forti_wazuh_manage: true
