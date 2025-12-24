@@ -65,6 +65,12 @@ It focuses on **configuration** (rsyslog + Wazuh ingestion). It does **not** ins
 ansible-playbook playbooks/site.yml
 ```
 
+If the playbook warns that the Wazuh service was not detected, restart it manually:
+
+```bash
+systemctl restart wazuh-manager
+```
+
 ---
 
 ## Authentication (no prompts)
