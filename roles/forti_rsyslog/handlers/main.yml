@@ -9,3 +9,11 @@
     name: "{{ forti_wazuh_manager_service_name }}"
     state: restarted
   when: forti_wazuh_service_present | default(true)
+
+- name: Restart filebeat
+  ansible.builtin.service:
+    name: "{{ forti_filebeat_service_name }}"
+    state: restarted
+  when:
+    - forti_wazuh_filebeat_restart | default(true)
+    - forti_filebeat_service_present | default(true)

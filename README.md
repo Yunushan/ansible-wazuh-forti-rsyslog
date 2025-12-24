@@ -153,6 +153,12 @@ This project configures **logrotate**.
 | `forti_wazuh_logall` | `yes` | Value for `<logall>` |
 | `forti_wazuh_manage_logall_json` | `true` | Manage `<logall_json>` in `ossec.conf` |
 | `forti_wazuh_logall_json` | `yes` | Value for `<logall_json>` |
+| `forti_wazuh_filebeat_manage` | `false` | Manage Filebeat Wazuh module archives settings |
+| `forti_wazuh_filebeat_module_path` | `/etc/filebeat/modules.d/wazuh.yml` | Path to Filebeat Wazuh module config |
+| `forti_wazuh_filebeat_archives_enabled` | `false` | Enable archives shipping in Filebeat |
+| `forti_wazuh_filebeat_archives_paths` | `[/var/ossec/logs/archives/archives.json]` | Paths for archives in Filebeat |
+| `forti_wazuh_filebeat_restart` | `true` | Restart Filebeat after changes |
+| `forti_filebeat_service_name` | `filebeat` | Filebeat service name |
 
 ---
 

@@ -331,6 +331,80 @@
     - forti_wazuh_manage_logall_json
   notify: Restart wazuh-manager
 
+- name: Check for Filebeat Wazuh module config
+  ansible.builtin.stat:
+    path: "{{ forti_wazuh_filebeat_module_path }}"
+  register: forti_wazuh_filebeat_module
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+
+- name: Warn if Filebeat Wazuh module config is missing
+  ansible.builtin.debug:
+    msg: >-
+      Filebeat Wazuh module config not found at {{ forti_wazuh_filebeat_module_path }}.
+      Skipping archives shipping configuration.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - not forti_wazuh_filebeat_module.stat.exists
+
+- name: Check for archives block in Filebeat Wazuh module config
+  ansible.builtin.command: "grep -Eq '^[[:space:]]*archives:' {{ forti_wazuh_filebeat_module_path }}"
+  register: forti_wazuh_filebeat_archives_block
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_module.stat.exists
+
+- name: Update archives enabled in Filebeat Wazuh module config
+  ansible.builtin.replace:
+    path: "{{ forti_wazuh_filebeat_module_path }}"
+    regexp: '(?ms)^([ \t]*archives:\s*\n(?:^[ \t]+.*\n)*?^[ \t]+enabled:\s*)(true|false)'
+    replace: '\1{{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}'
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_archives_block.rc == 0
+  notify: Restart filebeat
+
+- name: Insert archives block in Filebeat Wazuh module config
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_module_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES"
+    insertafter: '^\s*- module:\s*wazuh\s*$'
+    block: |2
+      archives:
+        enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
+        var.paths:
+      {%- for path in forti_wazuh_filebeat_archives_paths %}
+          - {{ path }}
+      {%- endfor %}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_archives_block.rc != 0
+  notify: Restart filebeat
+
+- name: Gather service facts (filebeat)
+  ansible.builtin.service_facts:
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_module.stat.exists
+
+- name: Determine if Filebeat service exists
+  ansible.builtin.set_fact:
+    forti_filebeat_service_present: "{{ forti_filebeat_service_name in ansible_facts.services }}"
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_module.stat.exists
+
 - name: Gather service facts (for safe Wazuh restarts)
   ansible.builtin.service_facts:
   when:

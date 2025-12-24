@@ -62,6 +62,15 @@ forti_wazuh_logall: "yes"
 forti_wazuh_manage_logall_json: true
 forti_wazuh_logall_json: "yes"
 
+# Optional: manage Filebeat Wazuh module archives shipping.
+forti_wazuh_filebeat_manage: false
+forti_wazuh_filebeat_module_path: /etc/filebeat/modules.d/wazuh.yml
+forti_wazuh_filebeat_archives_enabled: false
+forti_wazuh_filebeat_archives_paths:
+  - /var/ossec/logs/archives/archives.json
+forti_wazuh_filebeat_restart: true
+forti_filebeat_service_name: filebeat
+
 # The localfile block will be inserted before the closing ossec_config tag
 forti_wazuh_insert_before_regex: "</ossec_config>"
 
