@@ -1,0 +1,130 @@
+---
+- name: Validate configuration - at least one protocol enabled
+  ansible.builtin.assert:
+    that:
+      - forti_syslog_enable_udp or forti_syslog_enable_tcp
+    fail_msg: >-
+      Enable at least one protocol: forti_syslog_enable_udp and/or forti_syslog_enable_tcp.
+
+- name: Validate retention days
+  ansible.builtin.assert:
+    that:
+      - (forti_log_retention_days | int) > 0
+    fail_msg: "forti_log_retention_days must be a positive integer (e.g., 14, 30, 60)."
+
+- name: Validate UDP port
+  ansible.builtin.assert:
+    that:
+      - (forti_syslog_udp_port | int) > 0
+      - (forti_syslog_udp_port | int) < 65536
+  when: forti_syslog_enable_udp
+
+- name: Validate TCP port
+  ansible.builtin.assert:
+    that:
+      - (forti_syslog_tcp_port | int) > 0
+      - (forti_syslog_tcp_port | int) < 65536
+  when: forti_syslog_enable_tcp
+
+- name: Install rsyslog and logrotate
+  ansible.builtin.package:
+    name:
+      - rsyslog
+      - logrotate
+    state: present
+
+- name: Ensure Fortinet log directory exists
+  ansible.builtin.file:
+    path: "{{ forti_log_dir }}"
+    state: directory
+    owner: "{{ forti_log_owner }}"
+    group: "{{ forti_log_group }}"
+    mode: "{{ forti_log_dir_mode }}"
+
+- name: Ensure Fortinet log file exists (so Wazuh can tail it immediately)
+  ansible.builtin.file:
+    path: "{{ forti_log_path }}"
+    state: touch
+    owner: "{{ forti_log_owner }}"
+    group: "{{ forti_log_group }}"
+    mode: "{{ forti_log_file_mode }}"
+
+- name: Deploy rsyslog configuration for Fortinet
+  ansible.builtin.template:
+    src: fortinet-rsyslog.conf.j2
+    dest: "{{ forti_rsyslog_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog
+
+- name: Deploy logrotate configuration for Fortinet logs
+  ansible.builtin.template:
+    src: fortinet-logrotate.conf.j2
+    dest: "{{ forti_logrotate_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure rsyslog is enabled and started
+  ansible.builtin.service:
+    name: "{{ rsyslog_service_name }}"
+    state: started
+    enabled: true
+
+# --- Wazuh integration ---
+- name: Check for Wazuh ossec.conf
+  ansible.builtin.stat:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+  register: wazuh_ossec_conf
+  when: forti_wazuh_manage
+
+- name: Fail if Wazuh ossec.conf does not exist
+  ansible.builtin.fail:
+    msg: >-
+      Wazuh config not found at {{ forti_wazuh_ossec_conf_path }}.
+      Set forti_wazuh_ossec_conf_path to the correct ossec.conf location
+      or set forti_wazuh_manage=false to configure rsyslog only.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fail_if_missing
+    - not wazuh_ossec_conf.stat.exists
+
+- name: Gather service facts (for safe Wazuh restarts)
+  ansible.builtin.service_facts:
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+
+- name: Determine if Wazuh manager service exists
+  ansible.builtin.set_fact:
+    forti_wazuh_service_present: "{{ forti_wazuh_manager_service_name in ansible_facts.services }}"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+
+- name: Add Fortinet localfile entry to Wazuh (ossec.conf)
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI SYSLOG -->"
+    insertbefore: "{{ forti_wazuh_insert_before_regex }}"
+    block: |2
+      <localfile>
+        <location>{{ forti_log_path }}</location>
+        <log_format>{{ forti_wazuh_log_format }}</log_format>
+      </localfile>
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+  notify: Restart wazuh-manager
+
+- name: Warn if Wazuh service was not detected (restart skipped)
+  ansible.builtin.debug:
+    msg: >-
+      Wazuh manager service '{{ forti_wazuh_manager_service_name }}' was not found via service_facts.
+      ossec.conf was updated, but automatic restart was skipped. Restart Wazuh manually or set the correct
+      forti_wazuh_manager_service_name.
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - not (forti_wazuh_service_present | default(true))
