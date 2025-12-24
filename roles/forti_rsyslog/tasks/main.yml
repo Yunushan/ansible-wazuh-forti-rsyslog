@@ -403,13 +403,13 @@
   ansible.builtin.blockinfile:
     path: "{{ forti_wazuh_filebeat_config_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES INPUT"
-    block: |2
+    block: |
       filebeat.inputs:
-      - type: log
-        enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
-        paths:
+        - type: log
+          enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
+          paths:
       {%- for path in forti_wazuh_filebeat_archives_paths %}
-          - {{ path }}
+            - {{ path }}
       {%- endfor %}
   when:
     - forti_wazuh_manage
