@@ -39,6 +39,12 @@ forti_logrotate_conf_path: /etc/logrotate.d/fortinet-syslog
 # --- Service names ---
 rsyslog_service_name: rsyslog
 
+# --- Health checks ---
+# Validate rsyslog service state, listener ports, and log path after configuration.
+forti_rsyslog_healthcheck: true
+# If true, fail the play on health check issues; if false, emit warnings only.
+forti_rsyslog_healthcheck_fail: true
+
 # --- Wazuh integration ---
 forti_wazuh_manage: true
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf

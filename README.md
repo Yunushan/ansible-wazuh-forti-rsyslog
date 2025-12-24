@@ -15,6 +15,7 @@ It focuses on **configuration** (rsyslog + Wazuh ingestion). It does **not** ins
   - **TCP** (optional)
   - ports are configurable
 - Writes received Fortinet syslog to a configurable log file path
+- Optionally checks rsyslog service, listener ports, and log path (fail or warn)
 - Configures **logrotate** to keep logs for a configurable duration (daily rotation by default)
 - Adds a `<localfile>` entry to **Wazuh** so the Wazuh manager ingests the Fortinet log file
 
@@ -104,6 +105,13 @@ This project configures **logrotate**.
 - Keep **14 days**: `forti_log_retention_days: 14`
 - Keep **30 days**: `forti_log_retention_days: 30`
 - Keep **60 days**: `forti_log_retention_days: 60`
+
+### Health checks
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_rsyslog_healthcheck` | `true` | Run rsyslog health checks after configuration |
+| `forti_rsyslog_healthcheck_fail` | `true` | Fail the play on health check issues (set `false` to warn only) |
 
 ---
 

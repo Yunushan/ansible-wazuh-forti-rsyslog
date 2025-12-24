@@ -72,6 +72,151 @@
     state: started
     enabled: true
 
+# --- rsyslog health checks ---
+- name: Initialize rsyslog health check issues
+  ansible.builtin.set_fact:
+    forti_rsyslog_health_issues: []
+  when: forti_rsyslog_healthcheck
+
+- name: Gather service facts (rsyslog)
+  ansible.builtin.service_facts:
+  when: forti_rsyslog_healthcheck
+
+- name: Determine rsyslog service facts key
+  ansible.builtin.set_fact:
+    forti_rsyslog_service_key: >-
+      {{ rsyslog_service_name if (rsyslog_service_name in ansible_facts.services)
+         else (rsyslog_service_name ~ '.service') if ((rsyslog_service_name ~ '.service') in ansible_facts.services)
+         else '' }}
+  when: forti_rsyslog_healthcheck
+
+- name: Evaluate rsyslog service state
+  ansible.builtin.set_fact:
+    forti_rsyslog_service_running: >-
+      {{ (forti_rsyslog_service_key != '') and
+         (ansible_facts.services[forti_rsyslog_service_key].state == 'running') }}
+  when: forti_rsyslog_healthcheck
+
+- name: Flag rsyslog service not running
+  ansible.builtin.set_fact:
+    forti_rsyslog_health_issues: >-
+      {{ forti_rsyslog_health_issues + ["rsyslog service '" ~ rsyslog_service_name ~ "' is not running or not detected."] }}
+  when:
+    - forti_rsyslog_healthcheck
+    - not forti_rsyslog_service_running
+
+- name: Check Fortinet log path
+  ansible.builtin.stat:
+    path: "{{ forti_log_path }}"
+  register: forti_rsyslog_log_path_stat
+  when: forti_rsyslog_healthcheck
+
+- name: Flag missing Fortinet log path
+  ansible.builtin.set_fact:
+    forti_rsyslog_health_issues: >-
+      {{ forti_rsyslog_health_issues + ["Fortinet log path '" ~ forti_log_path ~ "' does not exist."] }}
+  when:
+    - forti_rsyslog_healthcheck
+    - not forti_rsyslog_log_path_stat.stat.exists
+
+- name: Detect socket inspection tool
+  ansible.builtin.shell: "command -v ss || command -v netstat"
+  register: forti_rsyslog_sock_tool
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_tcp or forti_syslog_enable_udp
+
+- name: Flag missing socket inspection tool
+  ansible.builtin.set_fact:
+    forti_rsyslog_health_issues: >-
+      {{ forti_rsyslog_health_issues + ['Unable to verify rsyslog ports because neither ss nor netstat is available.'] }}
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_tcp or forti_syslog_enable_udp
+    - forti_rsyslog_sock_tool.stdout | trim | length == 0
+
+- name: Capture TCP listeners
+  ansible.builtin.command: "{{ forti_rsyslog_sock_tool.stdout | trim }} -lnt"
+  register: forti_rsyslog_tcp_listen
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_tcp
+    - forti_rsyslog_sock_tool.stdout | trim | length > 0
+
+- name: Evaluate TCP listener
+  ansible.builtin.set_fact:
+    forti_rsyslog_tcp_listening: >-
+      {{ (forti_rsyslog_tcp_listen.rc == 0) and
+         ((forti_rsyslog_tcp_listen.stdout | regex_search(':' ~ (forti_syslog_tcp_port | string) ~ '(\\s|$)')) is not none) }}
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_tcp
+    - forti_rsyslog_sock_tool.stdout | trim | length > 0
+
+- name: Flag TCP port not listening
+  ansible.builtin.set_fact:
+    forti_rsyslog_health_issues: >-
+      {{ forti_rsyslog_health_issues + ['rsyslog TCP port ' ~ (forti_syslog_tcp_port | string) ~ ' is not listening.'] }}
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_tcp
+    - forti_rsyslog_sock_tool.stdout | trim | length > 0
+    - not forti_rsyslog_tcp_listening
+
+- name: Capture UDP listeners
+  ansible.builtin.command: "{{ forti_rsyslog_sock_tool.stdout | trim }} -lnu"
+  register: forti_rsyslog_udp_listen
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_udp
+    - forti_rsyslog_sock_tool.stdout | trim | length > 0
+
+- name: Evaluate UDP listener
+  ansible.builtin.set_fact:
+    forti_rsyslog_udp_listening: >-
+      {{ (forti_rsyslog_udp_listen.rc == 0) and
+         ((forti_rsyslog_udp_listen.stdout | regex_search(':' ~ (forti_syslog_udp_port | string) ~ '(\\s|$)')) is not none) }}
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_udp
+    - forti_rsyslog_sock_tool.stdout | trim | length > 0
+
+- name: Flag UDP port not listening
+  ansible.builtin.set_fact:
+    forti_rsyslog_health_issues: >-
+      {{ forti_rsyslog_health_issues + ['rsyslog UDP port ' ~ (forti_syslog_udp_port | string) ~ ' is not listening.'] }}
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_syslog_enable_udp
+    - forti_rsyslog_sock_tool.stdout | trim | length > 0
+    - not forti_rsyslog_udp_listening
+
+- name: Fail if rsyslog health checks failed
+  ansible.builtin.fail:
+    msg: |-
+      rsyslog is not working in Ansible:
+      - {{ forti_rsyslog_health_issues | join('\n- ') }}
+  when:
+    - forti_rsyslog_healthcheck
+    - forti_rsyslog_healthcheck_fail
+    - forti_rsyslog_health_issues | length > 0
+
+- name: Warn if rsyslog health checks failed
+  ansible.builtin.debug:
+    msg: |-
+      rsyslog is not working in Ansible:
+      - {{ forti_rsyslog_health_issues | join('\n- ') }}
+  when:
+    - forti_rsyslog_healthcheck
+    - not forti_rsyslog_healthcheck_fail
+    - forti_rsyslog_health_issues | length > 0
+
 # --- Wazuh integration ---
 - name: Check for Wazuh ossec.conf
   ansible.builtin.stat:

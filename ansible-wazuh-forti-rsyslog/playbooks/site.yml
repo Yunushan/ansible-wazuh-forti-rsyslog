@@ -1,5 +1,0 @@
-- name: Configure Wazuh to ingest Fortinet syslog via rsyslog
-  hosts: wazuh
-  become: true
-  roles:
-    - role: forti_rsyslog
