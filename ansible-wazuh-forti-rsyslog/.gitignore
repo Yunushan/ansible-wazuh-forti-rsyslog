@@ -1,0 +1,9 @@
+# Ansible
+*.retry
+
+# IDEs
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

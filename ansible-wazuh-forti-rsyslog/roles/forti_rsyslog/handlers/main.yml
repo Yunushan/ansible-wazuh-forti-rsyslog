@@ -1,0 +1,11 @@
+---
+- name: Restart rsyslog
+  ansible.builtin.service:
+    name: "{{ rsyslog_service_name }}"
+    state: restarted
+
+- name: Restart wazuh-manager
+  ansible.builtin.service:
+    name: "{{ forti_wazuh_manager_service_name }}"
+    state: restarted
+  when: forti_wazuh_service_present | default(true)
