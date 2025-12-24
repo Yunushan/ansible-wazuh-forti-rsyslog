@@ -139,6 +139,15 @@ This project configures **logrotate**.
 | `forti_rsyslog_healthcheck_retries` | `5` | Listener check retries (helps avoid transient false negatives) |
 | `forti_rsyslog_healthcheck_retry_delay` | `1` | Seconds to wait between listener retries |
 
+### Wazuh integration
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_manage_logall` | `true` | Manage `<logall>` in `ossec.conf` |
+| `forti_wazuh_logall` | `yes` | Value for `<logall>` |
+| `forti_wazuh_manage_logall_json` | `true` | Manage `<logall_json>` in `ossec.conf` |
+| `forti_wazuh_logall_json` | `yes` | Value for `<logall_json>` |
+
 ---
 
 ## Example inventory configuration

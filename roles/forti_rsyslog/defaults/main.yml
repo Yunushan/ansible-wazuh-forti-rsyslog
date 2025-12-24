@@ -56,6 +56,12 @@ forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
 forti_wazuh_log_format: syslog
 
+# Ensure archive settings are enabled in ossec.conf (global section).
+forti_wazuh_manage_logall: true
+forti_wazuh_logall: "yes"
+forti_wazuh_manage_logall_json: true
+forti_wazuh_logall_json: "yes"
+
 # The localfile block will be inserted before the closing ossec_config tag
 forti_wazuh_insert_before_regex: "</ossec_config>"
 

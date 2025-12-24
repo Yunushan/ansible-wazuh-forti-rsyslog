@@ -307,6 +307,30 @@
     - forti_wazuh_fail_if_missing
     - not wazuh_ossec_conf.stat.exists
 
+- name: Ensure Wazuh logall is configured (ossec.conf)
+  ansible.builtin.lineinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    regexp: '^\s*<logall>.*</logall>'
+    line: "  <logall>{{ forti_wazuh_logall }}</logall>"
+    insertafter: '^\s*<global>'
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_manage_logall
+  notify: Restart wazuh-manager
+
+- name: Ensure Wazuh logall_json is configured (ossec.conf)
+  ansible.builtin.lineinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    regexp: '^\s*<logall_json>.*</logall_json>'
+    line: "  <logall_json>{{ forti_wazuh_logall_json }}</logall_json>"
+    insertafter: '^\s*<global>'
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_manage_logall_json
+  notify: Restart wazuh-manager
+
 - name: Gather service facts (for safe Wazuh restarts)
   ansible.builtin.service_facts:
   when:
