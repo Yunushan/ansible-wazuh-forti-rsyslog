@@ -339,15 +339,86 @@
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
 
+- name: Check for Filebeat config
+  ansible.builtin.stat:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+  register: forti_wazuh_filebeat_config
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+
+- name: Warn if Filebeat config is missing
+  ansible.builtin.debug:
+    msg: >-
+      Filebeat config not found at {{ forti_wazuh_filebeat_config_path }}.
+      Archives shipping configuration may be skipped.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - not forti_wazuh_filebeat_config.stat.exists
+
 - name: Warn if Filebeat Wazuh module config is missing
   ansible.builtin.debug:
     msg: >-
       Filebeat Wazuh module config not found at {{ forti_wazuh_filebeat_module_path }}.
-      Skipping archives shipping configuration.
+      Falling back to filebeat.inputs if enabled.
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
     - not forti_wazuh_filebeat_module.stat.exists
+
+- name: Check for filebeat.inputs section
+  ansible.builtin.command: "grep -Eq '^filebeat\\.inputs:' {{ forti_wazuh_filebeat_config_path }}"
+  register: forti_wazuh_filebeat_inputs_section
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_inputs_manage
+    - forti_wazuh_filebeat_config.stat.exists
+
+- name: Insert archives input under filebeat.inputs
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES INPUT"
+    insertafter: '^filebeat\.inputs:'
+    block: |2
+      - type: log
+        enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
+        paths:
+      {%- for path in forti_wazuh_filebeat_archives_paths %}
+          - {{ path }}
+      {%- endfor %}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_inputs_manage
+    - forti_wazuh_filebeat_config.stat.exists
+    - not forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_inputs_section.rc == 0
+  notify: Restart filebeat
+
+- name: Add filebeat.inputs with archives input
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES INPUT"
+    block: |2
+      filebeat.inputs:
+      - type: log
+        enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
+        paths:
+      {%- for path in forti_wazuh_filebeat_archives_paths %}
+          - {{ path }}
+      {%- endfor %}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_inputs_manage
+    - forti_wazuh_filebeat_config.stat.exists
+    - not forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_inputs_section.rc != 0
+  notify: Restart filebeat
 
 - name: Check for archives block in Filebeat Wazuh module config
   ansible.builtin.command: "grep -Eq '^[[:space:]]*archives:' {{ forti_wazuh_filebeat_module_path }}"
@@ -395,7 +466,7 @@
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
-    - forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_module.stat.exists or forti_wazuh_filebeat_config.stat.exists
 
 - name: Determine if Filebeat service exists
   ansible.builtin.set_fact:
@@ -403,7 +474,7 @@
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
-    - forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_module.stat.exists or forti_wazuh_filebeat_config.stat.exists
 
 - name: Gather service facts (for safe Wazuh restarts)
   ansible.builtin.service_facts:

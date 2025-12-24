@@ -157,8 +157,12 @@ This project configures **logrotate**.
 | `forti_wazuh_filebeat_module_path` | `/etc/filebeat/modules.d/wazuh.yml` | Path to Filebeat Wazuh module config |
 | `forti_wazuh_filebeat_archives_enabled` | `false` | Enable archives shipping in Filebeat |
 | `forti_wazuh_filebeat_archives_paths` | `[/var/ossec/logs/archives/archives.json]` | Paths for archives in Filebeat |
+| `forti_wazuh_filebeat_config_path` | `/etc/filebeat/filebeat.yml` | Filebeat main config path (used for inputs fallback) |
+| `forti_wazuh_filebeat_inputs_manage` | `true` | Manage `filebeat.inputs` when module config is missing |
 | `forti_wazuh_filebeat_restart` | `true` | Restart Filebeat after changes |
 | `forti_filebeat_service_name` | `filebeat` | Filebeat service name |
+
+**Note:** If the Wazuh Filebeat module file is missing, the role can fall back to managing `filebeat.inputs` in `filebeat.yml` to ship archives.
 
 ---
 

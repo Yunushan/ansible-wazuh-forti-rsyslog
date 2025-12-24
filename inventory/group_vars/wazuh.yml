@@ -35,5 +35,7 @@ forti_wazuh_log_format: syslog
 # --- Filebeat archives shipping (optional) ---
 # forti_wazuh_filebeat_manage: true
 # forti_wazuh_filebeat_archives_enabled: true
+# forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
+# forti_wazuh_filebeat_inputs_manage: true
 # forti_wazuh_filebeat_archives_paths:
 #   - /var/ossec/logs/archives/archives.json
