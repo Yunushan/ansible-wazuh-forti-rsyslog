@@ -1,7 +1,7 @@
 # --- Syslog listener options ---
 forti_syslog_enable_udp: true
-forti_syslog_enable_tcp: true
-forti_syslog_udp_port: 5514
+forti_syslog_enable_tcp: false
+forti_syslog_udp_port: 514
 forti_syslog_tcp_port: 5514
 
 # Empty string means "all interfaces". Examples: "0.0.0.0", "::", "192.168.1.10"
@@ -44,6 +44,8 @@ rsyslog_service_name: rsyslog
 forti_rsyslog_healthcheck: true
 # If true, fail the play on health check issues; if false, emit warnings only.
 forti_rsyslog_healthcheck_fail: true
+# Delay (seconds) before checking listeners after handler flush.
+forti_rsyslog_healthcheck_delay: 2
 
 # --- Wazuh integration ---
 forti_wazuh_manage: true

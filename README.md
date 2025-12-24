@@ -67,6 +67,27 @@ ansible-playbook playbooks/site.yml
 
 ---
 
+## Authentication (no prompts)
+
+To avoid entering passwords interactively, use SSH keys and (optionally) passwordless sudo.
+
+Example (set in `inventory/group_vars/wazuh.yml` or `inventory/hosts.ini`):
+
+```yaml
+ansible_user: ansible
+ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+ansible_become: true
+ansible_become_method: sudo
+```
+
+If sudo still requires a password, store it with Ansible Vault:
+
+```yaml
+ansible_become_pass: "{{ vault_become_pass }}"
+```
+
+---
+
 ## Configuration variables
 
 All defaults live in `roles/forti_rsyslog/defaults/main.yml`. Override them in your inventory (recommended) or with `-e`.
@@ -76,8 +97,8 @@ All defaults live in `roles/forti_rsyslog/defaults/main.yml`. Override them in y
 | Variable | Default | Meaning |
 |---|---:|---|
 | `forti_syslog_enable_udp` | `true` | Enable UDP listener |
-| `forti_syslog_enable_tcp` | `true` | Enable TCP listener |
-| `forti_syslog_udp_port` | `5514` | UDP listen port |
+| `forti_syslog_enable_tcp` | `false` | Enable TCP listener |
+| `forti_syslog_udp_port` | `514` | UDP listen port |
 | `forti_syslog_tcp_port` | `5514` | TCP listen port |
 | `forti_syslog_listen_address` | `""` | Bind address; empty = all interfaces |
 | `forti_syslog_allowed_senders` | `[]` | Optional list of allowed sender IPs (drop others) |
@@ -112,6 +133,7 @@ This project configures **logrotate**.
 |---|---:|---|
 | `forti_rsyslog_healthcheck` | `true` | Run rsyslog health checks after configuration |
 | `forti_rsyslog_healthcheck_fail` | `true` | Fail the play on health check issues (set `false` to warn only) |
+| `forti_rsyslog_healthcheck_delay` | `2` | Seconds to wait after handler flush before checking listeners |
 
 ---
 
@@ -120,10 +142,10 @@ This project configures **logrotate**.
 Edit `inventory/group_vars/wazuh.yml`:
 
 ```yaml
-# Listen on UDP only, port 5514
+# Listen on UDP only, port 514
 forti_syslog_enable_udp: true
 forti_syslog_enable_tcp: false
-forti_syslog_udp_port: 5514
+forti_syslog_udp_port: 514
 
 # Store logs somewhere else
 forti_log_dir: /data/syslog/fortinet
@@ -152,7 +174,7 @@ ansible-playbook playbooks/site.yml
 
 ## Notes & troubleshooting
 
-- **Port 514:** Using 514 is possible, but 5514 is the default to avoid conflicts with other syslog receivers.
+- **Port 514:** This is now the default. If you have conflicts, use a high port like 5514 instead.
 - **SELinux:** On SELinux-enforcing systems, you may need additional policy adjustments if you log to a non-standard path.
 - **Wazuh config path:** If your `ossec.conf` is not at `/var/ossec/etc/ossec.conf`, set `forti_wazuh_ossec_conf_path` accordingly.
 - **FortiGate configuration:** Configure FortiGate to send syslog to this server on the chosen protocol and port.

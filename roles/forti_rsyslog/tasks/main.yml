@@ -72,6 +72,18 @@
     state: started
     enabled: true
 
+# Apply pending rsyslog config changes before health checks.
+- name: Flush rsyslog handlers before health checks
+  ansible.builtin.meta: flush_handlers
+  when: forti_rsyslog_healthcheck
+
+- name: Wait briefly for rsyslog to bind listeners
+  ansible.builtin.pause:
+    seconds: "{{ forti_rsyslog_healthcheck_delay }}"
+  when:
+    - forti_rsyslog_healthcheck
+    - (forti_rsyslog_healthcheck_delay | int) > 0
+
 # --- rsyslog health checks ---
 - name: Initialize rsyslog health check issues
   ansible.builtin.set_fact:
