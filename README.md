@@ -170,8 +170,9 @@ Wazuh archives rotation (separate retention):
 | `forti_wazuh_filebeat_module_path` | `/etc/filebeat/modules.d/wazuh.yml` | Path to Filebeat Wazuh module config |
 | `forti_wazuh_filebeat_archives_enabled` | `false` | Enable archives shipping in Filebeat |
 | `forti_wazuh_filebeat_archives_paths` | `[/var/ossec/logs/archives/archives.json]` | Paths for archives in Filebeat |
-| `forti_wazuh_archives_severity_mode` | `""` | Severity handling for archives: `drop`, `zero`, `keep` (empty uses legacy boolean) |
-| `forti_wazuh_archives_include_severity` | `false` | Legacy boolean: `true` keeps `rule.level`, `false` drops it |
+| `forti_wazuh_archives_clear_severity` | `true` | Drop `rule.level` from archives events (set `false` to keep severity) |
+| `forti_wazuh_archives_severity_mode` | `""` | Override severity handling for archives: `drop`, `zero`, `keep` |
+| `forti_wazuh_archives_include_severity` | `null` | Legacy override: `true` keeps `rule.level`, `false` drops it |
 | `forti_wazuh_filebeat_config_path` | `/etc/filebeat/filebeat.yml` | Filebeat main config path (used for inputs fallback) |
 | `forti_wazuh_filebeat_inputs_manage` | `true` | Manage inputs fallback when module config is missing |
 | `forti_wazuh_filebeat_inputs_dir` | `/etc/filebeat/inputs.d` | Directory for Filebeat inputs |
@@ -182,7 +183,7 @@ Wazuh archives rotation (separate retention):
 | `forti_wazuh_filebeat_restart` | `true` | Restart Filebeat after changes |
 | `forti_filebeat_service_name` | `filebeat` | Filebeat service name |
 
-**Note:** If the Wazuh Filebeat module file is missing, the role falls back to creating an input file under `inputs.d` and enables `filebeat.config.inputs` in `filebeat.yml`. If the Wazuh module is defined inline in `filebeat.yml`, the role removes the archives input file to avoid duplicate indexing. `forti_wazuh_archives_severity_mode` controls whether `rule.level` is dropped, set to `0`, or kept for archives events.
+**Note:** If the Wazuh Filebeat module file is missing, the role falls back to creating an input file under `inputs.d` and enables `filebeat.config.inputs` in `filebeat.yml`. If the Wazuh module is defined inline in `filebeat.yml`, the role removes the archives input file to avoid duplicate indexing. By default, `forti_wazuh_archives_clear_severity: true` drops `rule.level` from archives events; use `forti_wazuh_archives_severity_mode` to `keep` or `zero` it.
 
 ### Dashboards index pattern (optional)
 

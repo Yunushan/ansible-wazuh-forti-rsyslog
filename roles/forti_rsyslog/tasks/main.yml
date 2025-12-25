@@ -378,7 +378,13 @@
       {{
         (forti_wazuh_archives_severity_mode | default('') | lower | trim)
         if (forti_wazuh_archives_severity_mode | default('') | trim | length > 0)
-        else ((forti_wazuh_archives_include_severity | bool) | ternary('keep', 'drop'))
+        else (
+          (forti_wazuh_archives_include_severity is defined and forti_wazuh_archives_include_severity is not none)
+          | ternary(
+              (forti_wazuh_archives_include_severity | bool) | ternary('keep', 'drop'),
+              (forti_wazuh_archives_clear_severity | default(true) | bool) | ternary('drop', 'keep')
+            )
+        )
       }}
   when:
     - forti_wazuh_manage

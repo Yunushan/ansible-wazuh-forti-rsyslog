@@ -82,11 +82,13 @@ forti_wazuh_filebeat_module_path: /etc/filebeat/modules.d/wazuh.yml
 forti_wazuh_filebeat_archives_enabled: false
 forti_wazuh_filebeat_archives_paths:
   - /var/ossec/logs/archives/archives.json
-# Archives severity control: "" uses forti_wazuh_archives_include_severity (legacy).
-# Options: "drop" (remove rule.level), "zero" (set rule.level=0), "keep" (preserve).
+# Archives severity control: default clears rule.level from archives events.
+# Set false to keep severity, or use the mode override below.
+forti_wazuh_archives_clear_severity: true
+# Mode override (highest priority): "drop" (remove rule.level), "zero" (set rule.level=0), "keep" (preserve).
 forti_wazuh_archives_severity_mode: ""
-# Legacy boolean: false drops rule.level; true preserves rule.level.
-forti_wazuh_archives_include_severity: false
+# Legacy boolean override (deprecated): true keeps rule.level; false drops it.
+forti_wazuh_archives_include_severity: null
 forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
 forti_wazuh_filebeat_inputs_manage: true
 forti_wazuh_filebeat_inputs_dir: /etc/filebeat/inputs.d
