@@ -12,6 +12,15 @@
       - (forti_log_retention_days | int) > 0
     fail_msg: "forti_log_retention_days must be a positive integer (e.g., 14, 30, 60)."
 
+- name: Validate archives severity mode
+  ansible.builtin.assert:
+    that:
+      - (forti_wazuh_archives_severity_mode | default('') | lower | trim) in ["", "drop", "zero", "keep"]
+    fail_msg: "forti_wazuh_archives_severity_mode must be one of: drop, zero, keep (or empty)."
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+
 - name: Validate Wazuh archives retention days
   ansible.builtin.assert:
     that:
@@ -365,10 +374,31 @@
 
 - name: Build Filebeat archives processors
   ansible.builtin.set_fact:
+    forti_wazuh_archives_severity_mode_effective: >-
+      {{
+        (forti_wazuh_archives_severity_mode | default('') | lower | trim)
+        if (forti_wazuh_archives_severity_mode | default('') | trim | length > 0)
+        else ((forti_wazuh_archives_include_severity | bool) | ternary('keep', 'drop'))
+      }}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+
+- name: Build Filebeat archives processors list
+  ansible.builtin.set_fact:
     forti_wazuh_archives_processors: >-
       {{
-        [] if (forti_wazuh_archives_include_severity | bool)
-        else [ {'drop_fields': {'fields': ['rule.level'], 'ignore_missing': true}} ]
+        [] if (forti_wazuh_archives_severity_mode_effective == 'keep')
+        else (
+          (forti_wazuh_archives_severity_mode_effective == 'zero')
+          | ternary(
+              [
+                {'drop_fields': {'fields': ['rule.level'], 'ignore_missing': true}},
+                {'add_fields': {'target': 'rule', 'fields': {'level': 0}}}
+              ],
+              [{'drop_fields': {'fields': ['rule.level'], 'ignore_missing': true}}]
+            )
+        )
       }}
   when:
     - forti_wazuh_manage
@@ -536,20 +566,21 @@
     path: "{{ forti_wazuh_filebeat_module_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES"
     insertafter: '^\s*- module:\s*wazuh\s*$'
-    block: |2
-      archives:
-        enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
-        var.paths:
-      {%- for path in forti_wazuh_filebeat_archives_paths %}
-          - {{ path }}
-      {%- endfor %}
-      {%- if forti_wazuh_archives_processors | length > 0 %}
-        processors:
-          - drop_fields:
-              fields:
-                - rule.level
-              ignore_missing: true
-      {%- endif %}
+    block: >-
+      {{
+        {
+          'archives': (
+            {
+              'enabled': (forti_wazuh_filebeat_archives_enabled | bool),
+              'var.paths': forti_wazuh_filebeat_archives_paths
+            }
+            | combine(
+                (forti_wazuh_archives_processors | length > 0)
+                | ternary({'processors': forti_wazuh_archives_processors}, {})
+              )
+          )
+        } | to_nice_yaml(indent=2) | indent(2, true)
+      }}
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
