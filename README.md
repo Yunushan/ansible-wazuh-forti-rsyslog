@@ -1,6 +1,6 @@
 # Ansible: Wazuh + Fortinet Syslog via rsyslog
 
-This repository is an **Ansible project** that configures a Linux **Wazuh manager/server** to receive **FortiGate / Fortinet** syslog via **rsyslog**, write it to a configurable file path, and rotate the logs with a configurable retention period (e.g., 14 / 30 / 60 days).
+This repository is an **Ansible project** that configures a Linux **Wazuh manager/server** to receive **FortiGate / Fortinet** syslog via **rsyslog**, write it to a configurable file path, and rotate the logs with a configurable retention period (e.g., 1 / 7 / 14 days).
 
 It focuses on **configuration** (rsyslog + Wazuh ingestion). It does **not** install Wazuh itself.
 
@@ -126,16 +126,16 @@ This project configures **logrotate**.
 | Variable | Default | Meaning |
 |---|---:|---|
 | `forti_logrotate_frequency` | `daily` | Rotation frequency (`daily`, `weekly`, etc.) |
-| `forti_log_retention_days` | `14` | Used when frequency is `daily` |
+| `forti_log_retention_days` | `1` | Used when frequency is `daily` |
 | `forti_logrotate_rotate` | derived | Number of rotated files to keep |
 
 **Examples:**
 
+- Keep **1 day**: `forti_log_retention_days: 1`
+- Keep **7 days**: `forti_log_retention_days: 7`
 - Keep **14 days**: `forti_log_retention_days: 14`
-- Keep **30 days**: `forti_log_retention_days: 30`
-- Keep **60 days**: `forti_log_retention_days: 60`
 
-Wazuh archives rotation (defaults to match the Fortinet retention):
+Wazuh archives rotation (separate retention):
 
 | Variable | Default | Meaning |
 |---|---:|---|
@@ -143,7 +143,8 @@ Wazuh archives rotation (defaults to match the Fortinet retention):
 | `forti_wazuh_archives_logrotate_conf_path` | `/etc/logrotate.d/wazuh-archives` | Logrotate config path |
 | `forti_wazuh_archives_log_path` | `/var/ossec/logs/archives/archives.json` | Archives file to rotate |
 | `forti_wazuh_archives_logrotate_frequency` | `{{ forti_logrotate_frequency }}` | Rotation frequency |
-| `forti_wazuh_archives_logrotate_rotate` | `{{ forti_logrotate_rotate }}` | Number of rotated files to keep |
+| `forti_wazuh_archives_log_retention_days` | `14` | Used when frequency is `daily` |
+| `forti_wazuh_archives_logrotate_rotate` | derived | Number of rotated files to keep |
 
 **Note:** If your Wazuh package already ships `/etc/logrotate.d/wazuh` that manages archives, set `forti_wazuh_archives_logrotate_manage: false` to avoid duplicate logrotate entries.
 

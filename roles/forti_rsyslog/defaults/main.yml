@@ -22,7 +22,7 @@ forti_log_group: syslog
 
 # --- Log retention / rotation (duration adjustable) ---
 forti_logrotate_frequency: daily   # daily/weekly/monthly/yearly
-forti_log_retention_days: 14       # used when frequency=daily
+forti_log_retention_days: 1        # used when frequency=daily
 
 # logrotate "rotate" is "how many rotated files to keep"
 # If you rotate daily, rotate == retention days.
@@ -32,7 +32,7 @@ forti_logrotate_compress: true
 forti_logrotate_delaycompress: true
 forti_logrotate_copytruncate: true
 
-# --- Wazuh archives logrotate (match Fortinet retention by default) ---
+# --- Wazuh archives logrotate (separate retention) ---
 forti_wazuh_archives_logrotate_manage: true
 forti_wazuh_archives_logrotate_conf_path: /etc/logrotate.d/wazuh-archives
 forti_wazuh_archives_log_path: /var/ossec/logs/archives/archives.json
@@ -40,7 +40,8 @@ forti_wazuh_archives_log_owner: wazuh
 forti_wazuh_archives_log_group: wazuh
 forti_wazuh_archives_log_mode: "0660"
 forti_wazuh_archives_logrotate_frequency: "{{ forti_logrotate_frequency }}"
-forti_wazuh_archives_logrotate_rotate: "{{ forti_logrotate_rotate }}"
+forti_wazuh_archives_log_retention_days: 14
+forti_wazuh_archives_logrotate_rotate: "{{ forti_wazuh_archives_log_retention_days if forti_wazuh_archives_logrotate_frequency == 'daily' else 12 }}"
 forti_wazuh_archives_logrotate_compress: "{{ forti_logrotate_compress }}"
 forti_wazuh_archives_logrotate_delaycompress: "{{ forti_logrotate_delaycompress }}"
 forti_wazuh_archives_logrotate_copytruncate: "{{ forti_logrotate_copytruncate }}"

@@ -24,12 +24,13 @@ forti_log_filename: fortigate.log
 
 # --- Retention ---
 forti_logrotate_frequency: daily
-forti_log_retention_days: 14
+forti_log_retention_days: 1
 
 # --- Wazuh archives rotation (optional) ---
 # forti_wazuh_archives_logrotate_manage: true
 # forti_wazuh_archives_logrotate_conf_path: /etc/logrotate.d/wazuh-archives
 # forti_wazuh_archives_log_path: /var/ossec/logs/archives/archives.json
+# forti_wazuh_archives_log_retention_days: 14
 
 # --- Wazuh integration ---
 forti_wazuh_manage: true

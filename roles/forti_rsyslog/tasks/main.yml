@@ -12,6 +12,13 @@
       - (forti_log_retention_days | int) > 0
     fail_msg: "forti_log_retention_days must be a positive integer (e.g., 14, 30, 60)."
 
+- name: Validate Wazuh archives retention days
+  ansible.builtin.assert:
+    that:
+      - (forti_wazuh_archives_log_retention_days | int) > 0
+    fail_msg: "forti_wazuh_archives_log_retention_days must be a positive integer (e.g., 7, 14, 30)."
+  when: forti_wazuh_archives_logrotate_manage
+
 - name: Validate UDP port
   ansible.builtin.assert:
     that:
