@@ -521,6 +521,19 @@
     - forti_wazuh_filebeat_module_inline_present | default(false)
   notify: Restart filebeat
 
+- name: Remove inline archives block without paths
+  ansible.builtin.replace:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    regexp: '(?ms)^[ \t]{4}archives:\s*\n^[ \t]{6}enabled:\s*(true|false)\s*\n(?!^[ \t]{6}var\.paths:)'
+    replace: ''
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_config.stat.exists
+    - not forti_wazuh_filebeat_module.stat.exists
+    - forti_wazuh_filebeat_module_inline_present | default(false)
+  notify: Restart filebeat
+
 - name: Ensure archives block in Filebeat config (inline module)
   ansible.builtin.blockinfile:
     path: "{{ forti_wazuh_filebeat_config_path }}"
