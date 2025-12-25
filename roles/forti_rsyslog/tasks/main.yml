@@ -420,9 +420,9 @@
       - type: {{ forti_wazuh_filebeat_input_type }}
         enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
         paths:
-      {%- for path in forti_wazuh_filebeat_archives_paths %}
+{% for path in forti_wazuh_filebeat_archives_paths %}
           - {{ path }}
-      {%- endfor %}
+{% endfor %}
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
