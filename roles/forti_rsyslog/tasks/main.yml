@@ -641,6 +641,31 @@
   when: forti_wazuh_dashboards_manage
   no_log: true
 
+- name: Determine Dashboards settings API path
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_settings_path: >-
+      {{ "/api/ui_settings" if (forti_wazuh_dashboards_version | lower).startswith("2") else "/api/kibana/settings" }}
+  when: forti_wazuh_dashboards_manage
+
+- name: Set Dashboards timezone
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_dashboards_url_base }}{{ forti_wazuh_dashboards_settings_path }}"
+    method: POST
+    headers: "{{ forti_wazuh_dashboards_headers }}"
+    body_format: json
+    body:
+      changes:
+        "dateFormat:tz": "{{ forti_wazuh_dashboards_timezone }}"
+    status_code: [200, 204]
+    validate_certs: "{{ forti_wazuh_dashboards_validate_certs }}"
+    url_username: "{{ forti_wazuh_dashboards_username if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_dashboards_password if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+  when:
+    - forti_wazuh_dashboards_manage
+    - forti_wazuh_dashboards_timezone | length > 0
+  no_log: true
+
 - name: Check for Wazuh archives index pattern
   ansible.builtin.uri:
     url: "{{ forti_wazuh_dashboards_url_base }}/api/saved_objects/_find?type=index-pattern&search_fields=title&search={{ forti_wazuh_dashboards_archives_pattern | urlencode }}"

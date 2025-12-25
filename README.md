@@ -183,11 +183,12 @@ If you want the role to create the **Wazuh archives** index pattern in Wazuh/Ope
 | `forti_wazuh_dashboards_token` | `""` | Bearer token (token auth) |
 | `forti_wazuh_dashboards_version` | `2.x` | Dashboards version (used to select XSRF header) |
 | `forti_wazuh_dashboards_validate_certs` | `true` | Validate HTTPS certificates |
+| `forti_wazuh_dashboards_timezone` | `Etc/GMT-3` | Dashboards timezone (affects archives display) |
 | `forti_wazuh_dashboards_archives_pattern` | `wazuh-archives-*` | Index pattern title |
 | `forti_wazuh_dashboards_archives_pattern_id` | `wazuh-archives-*` | Saved object ID |
 | `forti_wazuh_dashboards_archives_time_field` | `timestamp` | Time field for the pattern |
 
-**Note:** This creates the index pattern only. You still need Filebeat archives shipping enabled for data to appear.
+**Note:** This creates the index pattern only. You still need Filebeat archives shipping enabled for data to appear. Archives are stored in UTC; the timezone setting controls how Dashboards displays them (e.g., `Etc/GMT-3` for GMT+3).
 
 ---
 
@@ -225,6 +226,7 @@ forti_wazuh_manager_service_name: wazuh-manager
 # forti_wazuh_dashboards_password: "{{ vault_dashboards_password }}"
 # forti_wazuh_dashboards_version: "2.x"
 # forti_wazuh_dashboards_validate_certs: false
+# forti_wazuh_dashboards_timezone: Etc/GMT-3
 # forti_wazuh_dashboards_archives_pattern: wazuh-archives-*
 # forti_wazuh_dashboards_archives_time_field: timestamp
 ```
