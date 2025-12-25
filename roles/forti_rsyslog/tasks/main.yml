@@ -641,30 +641,62 @@
   when: forti_wazuh_dashboards_manage
   no_log: true
 
-- name: Determine Dashboards settings API path
+- name: Determine Dashboards settings API paths
   ansible.builtin.set_fact:
-    forti_wazuh_dashboards_settings_path: >-
-      {{ "/api/opensearch_dashboards/settings" if (forti_wazuh_dashboards_version | lower).startswith("2") else "/api/kibana/settings" }}
+    forti_wazuh_dashboards_settings_paths: >-
+      {{
+        (forti_wazuh_dashboards_version | lower).startswith("2")
+        | ternary(
+            ["/api/opensearch_dashboards/settings", "/api/opensearch-dashboards/settings", "/api/ui_settings"],
+            ["/api/kibana/settings", "/api/ui_settings"]
+          )
+      }}
   when: forti_wazuh_dashboards_manage
 
 - name: Set Dashboards timezone
   ansible.builtin.uri:
-    url: "{{ forti_wazuh_dashboards_url_base }}{{ forti_wazuh_dashboards_settings_path }}"
+    url: "{{ forti_wazuh_dashboards_url_base }}{{ item }}"
     method: POST
     headers: "{{ forti_wazuh_dashboards_headers }}"
     body_format: json
     body:
       changes:
         "dateFormat:tz": "{{ forti_wazuh_dashboards_timezone }}"
-    status_code: [200, 204]
+    status_code: [200, 204, 404]
     validate_certs: "{{ forti_wazuh_dashboards_validate_certs }}"
     url_username: "{{ forti_wazuh_dashboards_username if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_dashboards_password if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+  register: forti_wazuh_dashboards_timezone_attempts
+  loop: "{{ forti_wazuh_dashboards_settings_paths }}"
+  failed_when: false
   when:
     - forti_wazuh_dashboards_manage
     - forti_wazuh_dashboards_timezone | length > 0
   no_log: true
+
+- name: Determine if Dashboards timezone was updated
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_timezone_set: >-
+      {{
+        (forti_wazuh_dashboards_timezone_attempts.results
+          | selectattr("status", "in", [200, 204])
+          | list
+          | length) > 0
+      }}
+  when:
+    - forti_wazuh_dashboards_manage
+    - forti_wazuh_dashboards_timezone | length > 0
+
+- name: Warn if Dashboards timezone could not be set
+  ansible.builtin.debug:
+    msg: >-
+      Dashboards timezone could not be set (tried {{ forti_wazuh_dashboards_settings_paths | join(", ") }}).
+      Check forti_wazuh_dashboards_url and any proxy/base-path settings.
+  when:
+    - forti_wazuh_dashboards_manage
+    - forti_wazuh_dashboards_timezone | length > 0
+    - not (forti_wazuh_dashboards_timezone_set | default(false))
 
 - name: Check for Wazuh archives index pattern
   ansible.builtin.uri:
