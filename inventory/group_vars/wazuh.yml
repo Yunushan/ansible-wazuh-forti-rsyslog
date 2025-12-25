@@ -53,6 +53,13 @@ forti_wazuh_log_format: syslog
 # forti_wazuh_archives_include_severity: null # legacy override
 # forti_wazuh_filebeat_archives_paths:
 #   - /var/ossec/logs/archives/archives.json
+# forti_wazuh_archives_pipeline_manage: false
+# forti_wazuh_opensearch_url: https://127.0.0.1:9200
+# forti_wazuh_opensearch_auth_method: basic
+# forti_wazuh_opensearch_username: admin
+# forti_wazuh_opensearch_password: "{{ vault_opensearch_password }}"
+# forti_wazuh_opensearch_validate_certs: false
+# forti_wazuh_archives_pipeline_name: filebeat-7.10.2-wazuh-archives-pipeline
 
 # --- Dashboards index pattern (optional) ---
 # forti_wazuh_dashboards_manage: true

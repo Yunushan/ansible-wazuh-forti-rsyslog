@@ -89,6 +89,18 @@ forti_wazuh_archives_clear_severity: true
 forti_wazuh_archives_severity_mode: ""
 # Legacy boolean override (deprecated): true keeps rule.level; false drops it.
 forti_wazuh_archives_include_severity: null
+
+# --- Wazuh archives ingest pipeline (optional) ---
+forti_wazuh_archives_pipeline_manage: false
+forti_wazuh_opensearch_url: ""
+forti_wazuh_opensearch_auth_method: basic  # basic | token | none
+forti_wazuh_opensearch_username: ""
+forti_wazuh_opensearch_password: ""
+forti_wazuh_opensearch_token: ""
+forti_wazuh_opensearch_validate_certs: true
+# If empty, the role will try to auto-detect the archives pipeline by name match.
+forti_wazuh_archives_pipeline_name: ""
+forti_wazuh_archives_pipeline_match: "wazuh-archives"
 forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
 forti_wazuh_filebeat_inputs_manage: true
 forti_wazuh_filebeat_inputs_dir: /etc/filebeat/inputs.d

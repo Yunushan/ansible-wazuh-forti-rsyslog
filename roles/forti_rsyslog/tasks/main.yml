@@ -19,7 +19,21 @@
     fail_msg: "forti_wazuh_archives_severity_mode must be one of: drop, zero, keep (or empty)."
   when:
     - forti_wazuh_manage
-    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_manage or forti_wazuh_archives_pipeline_manage
+
+- name: Validate OpenSearch API configuration
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_opensearch_url | length > 0
+      - forti_wazuh_opensearch_auth_method in ["basic", "token", "none"]
+      - forti_wazuh_opensearch_auth_method != "basic" or (forti_wazuh_opensearch_username | length > 0 and forti_wazuh_opensearch_password | length > 0)
+      - forti_wazuh_opensearch_auth_method != "token" or (forti_wazuh_opensearch_token | length > 0)
+    fail_msg: >-
+      OpenSearch API management is enabled but required settings are missing.
+      Set forti_wazuh_opensearch_url and the appropriate auth variables
+      (forti_wazuh_opensearch_username/password or forti_wazuh_opensearch_token),
+      or set forti_wazuh_archives_pipeline_manage=false.
+  when: forti_wazuh_archives_pipeline_manage
 
 - name: Validate Wazuh archives retention days
   ansible.builtin.assert:
@@ -701,6 +715,168 @@
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
     - not (forti_wazuh_service_present | default(true))
+
+# --- Wazuh archives ingest pipeline (optional) ---
+- name: Normalize OpenSearch URL
+  ansible.builtin.set_fact:
+    forti_wazuh_opensearch_url_base: "{{ forti_wazuh_opensearch_url | regex_replace('/+$', '') }}"
+  when: forti_wazuh_archives_pipeline_manage
+
+- name: Build OpenSearch request headers
+  ansible.builtin.set_fact:
+    forti_wazuh_opensearch_headers: >-
+      {{
+        {"Content-Type": "application/json"}
+        | combine(
+            (forti_wazuh_opensearch_auth_method == "token")
+            | ternary({"Authorization": "Bearer " ~ forti_wazuh_opensearch_token}, {})
+          )
+      }}
+  when: forti_wazuh_archives_pipeline_manage
+  no_log: true
+
+- name: Fetch ingest pipelines list
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_opensearch_url_base }}/_ingest/pipeline"
+    method: GET
+    headers: "{{ forti_wazuh_opensearch_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 403, 404]
+  register: forti_wazuh_opensearch_pipeline_list
+  failed_when: false
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_name | trim | length == 0
+  no_log: true
+
+- name: Determine archives ingest pipeline name
+  ansible.builtin.set_fact:
+    forti_wazuh_archives_pipeline_name_effective: >-
+      {{
+        (forti_wazuh_archives_pipeline_name | default('') | trim)
+        if (forti_wazuh_archives_pipeline_name | default('') | trim | length > 0)
+        else (
+          (forti_wazuh_opensearch_pipeline_list.json.keys() | list
+            | select('search', forti_wazuh_archives_pipeline_match)
+            | list | first | default(''))
+          if (forti_wazuh_opensearch_pipeline_list.status | default(0) == 200)
+          else ''
+        )
+      }}
+  when: forti_wazuh_archives_pipeline_manage
+
+- name: Warn if archives ingest pipeline could not be determined
+  ansible.builtin.debug:
+    msg: >-
+      Could not determine archives ingest pipeline name. Set forti_wazuh_archives_pipeline_name
+      or adjust forti_wazuh_archives_pipeline_match.
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_name_effective | length == 0
+
+- name: Fetch archives ingest pipeline
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_opensearch_url_base }}/_ingest/pipeline/{{ forti_wazuh_archives_pipeline_name_effective }}"
+    method: GET
+    headers: "{{ forti_wazuh_opensearch_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 403, 404]
+  register: forti_wazuh_archives_pipeline_get
+  failed_when: false
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_name_effective | length > 0
+  no_log: true
+
+- name: Determine archives severity mode for pipeline
+  ansible.builtin.set_fact:
+    forti_wazuh_archives_pipeline_severity_mode_effective: >-
+      {{
+        (forti_wazuh_archives_severity_mode | default('') | lower | trim)
+        if (forti_wazuh_archives_severity_mode | default('') | trim | length > 0)
+        else (
+          (forti_wazuh_archives_include_severity is defined and forti_wazuh_archives_include_severity is not none)
+          | ternary(
+              (forti_wazuh_archives_include_severity | bool) | ternary('keep', 'drop'),
+              (forti_wazuh_archives_clear_severity | default(true) | bool) | ternary('drop', 'keep')
+            )
+        )
+      }}
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_get.status | default(0) == 200
+
+- name: Build archives pipeline rule.level processors
+  ansible.builtin.set_fact:
+    forti_wazuh_archives_pipeline_rule_level_processors: >-
+      {{
+        [] if (forti_wazuh_archives_pipeline_severity_mode_effective == 'keep')
+        else (
+          (forti_wazuh_archives_pipeline_severity_mode_effective == 'zero')
+          | ternary(
+              [{'set': {'field': 'rule.level', 'value': 0, 'override': true, 'tag': 'forti_wazuh_archives_rule_level'}}],
+              [{'remove': {'field': 'rule.level', 'ignore_missing': true, 'tag': 'forti_wazuh_archives_rule_level'}}]
+            )
+        )
+      }}
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_get.status | default(0) == 200
+
+- name: Prepare updated archives ingest pipeline
+  ansible.builtin.set_fact:
+    forti_wazuh_archives_pipeline_current: "{{ forti_wazuh_archives_pipeline_get.json[forti_wazuh_archives_pipeline_name_effective] }}"
+    forti_wazuh_archives_pipeline_processors_clean: >-
+      {{
+        (forti_wazuh_archives_pipeline_get.json[forti_wazuh_archives_pipeline_name_effective].processors | default([]))
+        | rejectattr('tag', 'equalto', 'forti_wazuh_archives_rule_level')
+        | list
+      }}
+    forti_wazuh_archives_pipeline_processors_updated: >-
+      {{
+        forti_wazuh_archives_pipeline_processors_clean + forti_wazuh_archives_pipeline_rule_level_processors
+      }}
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_get.status | default(0) == 200
+
+- name: Update archives ingest pipeline rule.level handling
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_opensearch_url_base }}/_ingest/pipeline/{{ forti_wazuh_archives_pipeline_name_effective }}"
+    method: PUT
+    headers: "{{ forti_wazuh_opensearch_headers }}"
+    body_format: json
+    body: >-
+      {{
+        forti_wazuh_archives_pipeline_current
+        | combine({'processors': forti_wazuh_archives_pipeline_processors_updated})
+      }}
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200]
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_get.status | default(0) == 200
+    - forti_wazuh_archives_pipeline_current.processors | default([]) != forti_wazuh_archives_pipeline_processors_updated
+  no_log: true
+
+- name: Warn if archives ingest pipeline could not be accessed
+  ansible.builtin.debug:
+    msg: >-
+      OpenSearch API returned HTTP {{ forti_wazuh_archives_pipeline_get.status }} for ingest pipeline.
+      Skipping archives rule.level handling. Check OpenSearch credentials or URL.
+  when:
+    - forti_wazuh_archives_pipeline_manage
+    - forti_wazuh_archives_pipeline_name_effective | length > 0
+    - forti_wazuh_archives_pipeline_get.status | default(0) != 200
 
 # --- Wazuh Dashboards index pattern (optional) ---
 - name: Validate Dashboards API configuration
