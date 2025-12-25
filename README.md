@@ -167,7 +167,7 @@ This project configures **logrotate**.
 | `forti_wazuh_filebeat_restart` | `true` | Restart Filebeat after changes |
 | `forti_filebeat_service_name` | `filebeat` | Filebeat service name |
 
-**Note:** If the Wazuh Filebeat module file is missing, the role falls back to creating an input file under `inputs.d` and enables `filebeat.config.inputs` in `filebeat.yml`.
+**Note:** If the Wazuh Filebeat module file is missing, the role falls back to creating an input file under `inputs.d` and enables `filebeat.config.inputs` in `filebeat.yml`. If the Wazuh module is defined inline in `filebeat.yml`, the role removes the archives input file to avoid duplicate indexing.
 
 ### Dashboards index pattern (optional)
 
