@@ -66,6 +66,15 @@
     group: root
     mode: "0644"
 
+- name: Deploy logrotate configuration for Wazuh archives
+  ansible.builtin.template:
+    src: wazuh-archives-logrotate.conf.j2
+    dest: "{{ forti_wazuh_archives_logrotate_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: forti_wazuh_archives_logrotate_manage
+
 - name: Ensure rsyslog is enabled and started
   ansible.builtin.service:
     name: "{{ rsyslog_service_name }}"

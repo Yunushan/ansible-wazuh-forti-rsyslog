@@ -32,6 +32,19 @@ forti_logrotate_compress: true
 forti_logrotate_delaycompress: true
 forti_logrotate_copytruncate: true
 
+# --- Wazuh archives logrotate (match Fortinet retention by default) ---
+forti_wazuh_archives_logrotate_manage: true
+forti_wazuh_archives_logrotate_conf_path: /etc/logrotate.d/wazuh-archives
+forti_wazuh_archives_log_path: /var/ossec/logs/archives/archives.json
+forti_wazuh_archives_log_owner: wazuh
+forti_wazuh_archives_log_group: wazuh
+forti_wazuh_archives_log_mode: "0660"
+forti_wazuh_archives_logrotate_frequency: "{{ forti_logrotate_frequency }}"
+forti_wazuh_archives_logrotate_rotate: "{{ forti_logrotate_rotate }}"
+forti_wazuh_archives_logrotate_compress: "{{ forti_logrotate_compress }}"
+forti_wazuh_archives_logrotate_delaycompress: "{{ forti_logrotate_delaycompress }}"
+forti_wazuh_archives_logrotate_copytruncate: "{{ forti_logrotate_copytruncate }}"
+
 # --- Config file locations ---
 forti_rsyslog_conf_path: /etc/rsyslog.d/10-fortinet.conf
 forti_logrotate_conf_path: /etc/logrotate.d/fortinet-syslog

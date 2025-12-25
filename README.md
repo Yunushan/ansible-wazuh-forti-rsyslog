@@ -135,6 +135,18 @@ This project configures **logrotate**.
 - Keep **30 days**: `forti_log_retention_days: 30`
 - Keep **60 days**: `forti_log_retention_days: 60`
 
+Wazuh archives rotation (defaults to match the Fortinet retention):
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_archives_logrotate_manage` | `true` | Manage logrotate for `/var/ossec/logs/archives/archives.json` |
+| `forti_wazuh_archives_logrotate_conf_path` | `/etc/logrotate.d/wazuh-archives` | Logrotate config path |
+| `forti_wazuh_archives_log_path` | `/var/ossec/logs/archives/archives.json` | Archives file to rotate |
+| `forti_wazuh_archives_logrotate_frequency` | `{{ forti_logrotate_frequency }}` | Rotation frequency |
+| `forti_wazuh_archives_logrotate_rotate` | `{{ forti_logrotate_rotate }}` | Number of rotated files to keep |
+
+**Note:** If your Wazuh package already ships `/etc/logrotate.d/wazuh` that manages archives, set `forti_wazuh_archives_logrotate_manage: false` to avoid duplicate logrotate entries.
+
 ### Health checks
 
 | Variable | Default | Meaning |
