@@ -169,6 +169,26 @@ This project configures **logrotate**.
 
 **Note:** If the Wazuh Filebeat module file is missing, the role falls back to creating an input file under `inputs.d` and enables `filebeat.config.inputs` in `filebeat.yml`.
 
+### Dashboards index pattern (optional)
+
+If you want the role to create the **Wazuh archives** index pattern in Wazuh/OpenSearch Dashboards, enable this block.
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_dashboards_manage` | `false` | Create the archives index pattern via Dashboards API |
+| `forti_wazuh_dashboards_url` | `""` | Base URL for Dashboards (e.g., `https://wazuh.example.com`) |
+| `forti_wazuh_dashboards_auth_method` | `basic` | Auth method: `basic`, `token`, or `none` |
+| `forti_wazuh_dashboards_username` | `""` | Dashboards username (basic auth) |
+| `forti_wazuh_dashboards_password` | `""` | Dashboards password (basic auth) |
+| `forti_wazuh_dashboards_token` | `""` | Bearer token (token auth) |
+| `forti_wazuh_dashboards_version` | `2.x` | Dashboards version (used to select XSRF header) |
+| `forti_wazuh_dashboards_validate_certs` | `true` | Validate HTTPS certificates |
+| `forti_wazuh_dashboards_archives_pattern` | `wazuh-archives-*` | Index pattern title |
+| `forti_wazuh_dashboards_archives_pattern_id` | `wazuh-archives-*` | Saved object ID |
+| `forti_wazuh_dashboards_archives_time_field` | `timestamp` | Time field for the pattern |
+
+**Note:** This creates the index pattern only. You still need Filebeat archives shipping enabled for data to appear.
+
 ---
 
 ## Example inventory configuration
@@ -196,6 +216,17 @@ forti_syslog_allowed_senders:
 # Wazuh config path/service name (change if your install differs)
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
+
+# (Optional) create Wazuh archives index pattern in Dashboards
+# forti_wazuh_dashboards_manage: true
+# forti_wazuh_dashboards_url: https://wazuh.example.com
+# forti_wazuh_dashboards_auth_method: basic
+# forti_wazuh_dashboards_username: admin
+# forti_wazuh_dashboards_password: "{{ vault_dashboards_password }}"
+# forti_wazuh_dashboards_version: "2.x"
+# forti_wazuh_dashboards_validate_certs: false
+# forti_wazuh_dashboards_archives_pattern: wazuh-archives-*
+# forti_wazuh_dashboards_archives_time_field: timestamp
 ```
 
 Run:

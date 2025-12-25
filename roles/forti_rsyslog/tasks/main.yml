@@ -416,7 +416,7 @@
     owner: root
     group: root
     mode: "0644"
-    content: >-
+    content: |
       {{ [
           {
             'type': forti_wazuh_filebeat_input_type,
@@ -526,3 +526,83 @@
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
     - not (forti_wazuh_service_present | default(true))
+
+# --- Wazuh Dashboards index pattern (optional) ---
+- name: Validate Dashboards API configuration
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_dashboards_url | length > 0
+      - forti_wazuh_dashboards_auth_method in ["basic", "token", "none"]
+      - forti_wazuh_dashboards_auth_method != "basic" or (forti_wazuh_dashboards_username | length > 0 and forti_wazuh_dashboards_password | length > 0)
+      - forti_wazuh_dashboards_auth_method != "token" or (forti_wazuh_dashboards_token | length > 0)
+    fail_msg: >-
+      Dashboards API is enabled but required settings are missing.
+      Set forti_wazuh_dashboards_url and the appropriate auth variables
+      (forti_wazuh_dashboards_username/password or forti_wazuh_dashboards_token),
+      or set forti_wazuh_dashboards_manage=false.
+  when: forti_wazuh_dashboards_manage
+
+- name: Normalize Dashboards URL
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_url_base: "{{ forti_wazuh_dashboards_url | regex_replace('/+$', '') }}"
+  when: forti_wazuh_dashboards_manage
+
+- name: Determine Dashboards XSRF header
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_xsrf_header: >-
+      {{ "osd-xsrf" if (forti_wazuh_dashboards_version | lower).startswith("2") else "kbn-xsrf" }}
+  when: forti_wazuh_dashboards_manage
+
+- name: Build Dashboards request headers
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_headers: >-
+      {{
+        {forti_wazuh_dashboards_xsrf_header: "true", "Content-Type": "application/json"}
+        | combine(
+            (forti_wazuh_dashboards_auth_method == "token")
+            | ternary({"Authorization": "Bearer " ~ forti_wazuh_dashboards_token}, {})
+          )
+      }}
+  when: forti_wazuh_dashboards_manage
+  no_log: true
+
+- name: Check for Wazuh archives index pattern
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_dashboards_url_base }}/api/saved_objects/_find?type=index-pattern&search_fields=title&search={{ forti_wazuh_dashboards_archives_pattern | urlencode }}"
+    method: GET
+    headers: "{{ forti_wazuh_dashboards_headers }}"
+    return_content: true
+    status_code: 200
+    validate_certs: "{{ forti_wazuh_dashboards_validate_certs }}"
+    url_username: "{{ forti_wazuh_dashboards_username if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_dashboards_password if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+  register: forti_wazuh_dashboards_archives_find
+  when: forti_wazuh_dashboards_manage
+  no_log: true
+
+- name: Determine if archives index pattern exists
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_archives_pattern_exists: >-
+      {{ (forti_wazuh_dashboards_archives_find.json.total | default(0) | int) > 0 }}
+  when: forti_wazuh_dashboards_manage
+
+- name: Create Wazuh archives index pattern
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_dashboards_url_base }}/api/saved_objects/index-pattern/{{ forti_wazuh_dashboards_archives_pattern_id | urlencode }}"
+    method: POST
+    headers: "{{ forti_wazuh_dashboards_headers }}"
+    body_format: json
+    body:
+      attributes:
+        title: "{{ forti_wazuh_dashboards_archives_pattern }}"
+        timeFieldName: "{{ forti_wazuh_dashboards_archives_time_field }}"
+    status_code: [200, 201]
+    validate_certs: "{{ forti_wazuh_dashboards_validate_certs }}"
+    url_username: "{{ forti_wazuh_dashboards_username if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_dashboards_password if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
+  when:
+    - forti_wazuh_dashboards_manage
+    - not forti_wazuh_dashboards_archives_pattern_exists
+  no_log: true
