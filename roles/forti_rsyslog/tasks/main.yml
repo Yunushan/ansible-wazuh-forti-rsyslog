@@ -545,7 +545,7 @@
     path: "{{ forti_wazuh_filebeat_config_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES INLINE"
     insertafter: '^\s*- module:\s*wazuh\s*$'
-    block: "{{ { 'archives': { 'enabled': (forti_wazuh_filebeat_archives_enabled | bool), 'var.paths': forti_wazuh_filebeat_archives_paths } } | to_nice_yaml(indent=2) | indent(4) }}"
+    block: "{{ { 'archives': { 'enabled': (forti_wazuh_filebeat_archives_enabled | bool), 'var.paths': forti_wazuh_filebeat_archives_paths } } | to_nice_yaml(indent=2) | indent(4, true) }}"
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
