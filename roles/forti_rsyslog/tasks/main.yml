@@ -711,20 +711,38 @@
     method: GET
     headers: "{{ forti_wazuh_dashboards_headers }}"
     return_content: true
-    status_code: 200
+    status_code: [200, 403, 404]
     validate_certs: "{{ forti_wazuh_dashboards_validate_certs }}"
     url_username: "{{ forti_wazuh_dashboards_username if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_dashboards_password if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
   register: forti_wazuh_dashboards_archives_find
+  failed_when: false
   when: forti_wazuh_dashboards_manage
   no_log: true
+
+- name: Determine if archives index pattern API is available
+  ansible.builtin.set_fact:
+    forti_wazuh_dashboards_archives_api_ok: "{{ forti_wazuh_dashboards_archives_find.status == 200 }}"
+  when: forti_wazuh_dashboards_manage
 
 - name: Determine if archives index pattern exists
   ansible.builtin.set_fact:
     forti_wazuh_dashboards_archives_pattern_exists: >-
-      {{ (forti_wazuh_dashboards_archives_find.json.total | default(0) | int) > 0 }}
+      {{
+        forti_wazuh_dashboards_archives_api_ok
+        and (forti_wazuh_dashboards_archives_find.json.total | default(0) | int) > 0
+      }}
   when: forti_wazuh_dashboards_manage
+
+- name: Warn if archives index pattern API is not accessible
+  ansible.builtin.debug:
+    msg: >-
+      Dashboards API returned HTTP {{ forti_wazuh_dashboards_archives_find.status }} for saved_objects.
+      Skipping archives index pattern creation. Check credentials/roles or proxy/base-path settings.
+  when:
+    - forti_wazuh_dashboards_manage
+    - not (forti_wazuh_dashboards_archives_api_ok | default(false))
 
 - name: Create Wazuh archives index pattern
   ansible.builtin.uri:
@@ -743,5 +761,6 @@
     force_basic_auth: "{{ true if forti_wazuh_dashboards_auth_method == 'basic' else omit }}"
   when:
     - forti_wazuh_dashboards_manage
+    - forti_wazuh_dashboards_archives_api_ok | default(false)
     - not forti_wazuh_dashboards_archives_pattern_exists
   no_log: true
