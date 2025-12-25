@@ -82,6 +82,8 @@ forti_wazuh_filebeat_module_path: /etc/filebeat/modules.d/wazuh.yml
 forti_wazuh_filebeat_archives_enabled: false
 forti_wazuh_filebeat_archives_paths:
   - /var/ossec/logs/archives/archives.json
+# If false, drop rule.level from archives events to avoid severity grouping.
+forti_wazuh_archives_include_severity: false
 forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
 forti_wazuh_filebeat_inputs_manage: true
 forti_wazuh_filebeat_inputs_dir: /etc/filebeat/inputs.d

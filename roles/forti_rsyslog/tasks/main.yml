@@ -363,6 +363,17 @@
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
 
+- name: Build Filebeat archives processors
+  ansible.builtin.set_fact:
+    forti_wazuh_archives_processors: >-
+      {{
+        [] if (forti_wazuh_archives_include_severity | bool)
+        else [ {'drop_fields': {'fields': ['rule.level'], 'ignore_missing': true}} ]
+      }}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+
 - name: Warn if Filebeat config is missing
   ansible.builtin.debug:
     msg: >-
@@ -473,6 +484,10 @@
             'enabled': (forti_wazuh_filebeat_archives_enabled | bool),
             'paths': forti_wazuh_filebeat_archives_paths
           }
+          | combine(
+              (forti_wazuh_archives_processors | length > 0)
+              | ternary({'processors': forti_wazuh_archives_processors}, {})
+            )
         ] | to_nice_yaml(indent=2) }}
   when:
     - forti_wazuh_manage
@@ -481,6 +496,17 @@
     - forti_wazuh_filebeat_config.stat.exists
     - not forti_wazuh_filebeat_module.stat.exists
     - not (forti_wazuh_filebeat_module_inline_present | default(false))
+  notify: Restart filebeat
+
+- name: Remove existing archives block in Filebeat Wazuh module config
+  ansible.builtin.replace:
+    path: "{{ forti_wazuh_filebeat_module_path }}"
+    regexp: '(?ms)^([ \t]*- module:\s*wazuh\s*\n(?:^[ \t]+.*\n)*?)^[ \t]{2}archives:\s*\n(?:^[ \t]{4,}.*\n)*'
+    replace: '\1'
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_module.stat.exists
   notify: Restart filebeat
 
 - name: Check for archives block in Filebeat Wazuh module config
@@ -517,6 +543,13 @@
       {%- for path in forti_wazuh_filebeat_archives_paths %}
           - {{ path }}
       {%- endfor %}
+      {%- if forti_wazuh_archives_processors | length > 0 %}
+        processors:
+          - drop_fields:
+              fields:
+                - rule.level
+              ignore_missing: true
+      {%- endif %}
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
@@ -555,7 +588,21 @@
     path: "{{ forti_wazuh_filebeat_config_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES INLINE"
     insertafter: '^\s*- module:\s*wazuh\s*$'
-    block: "{{ { 'archives': { 'enabled': (forti_wazuh_filebeat_archives_enabled | bool), 'var.paths': forti_wazuh_filebeat_archives_paths } } | to_nice_yaml(indent=2) | indent(4, true) }}"
+    block: >-
+      {{
+        {
+          'archives': (
+            {
+              'enabled': (forti_wazuh_filebeat_archives_enabled | bool),
+              'var.paths': forti_wazuh_filebeat_archives_paths
+            }
+            | combine(
+                (forti_wazuh_archives_processors | length > 0)
+                | ternary({'processors': forti_wazuh_archives_processors}, {})
+              )
+          )
+        } | to_nice_yaml(indent=2) | indent(4, true)
+      }}
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
