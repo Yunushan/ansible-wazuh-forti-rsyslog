@@ -644,7 +644,7 @@
 - name: Determine Dashboards settings API path
   ansible.builtin.set_fact:
     forti_wazuh_dashboards_settings_path: >-
-      {{ "/api/ui_settings" if (forti_wazuh_dashboards_version | lower).startswith("2") else "/api/kibana/settings" }}
+      {{ "/api/opensearch_dashboards/settings" if (forti_wazuh_dashboards_version | lower).startswith("2") else "/api/kibana/settings" }}
   when: forti_wazuh_dashboards_manage
 
 - name: Set Dashboards timezone
