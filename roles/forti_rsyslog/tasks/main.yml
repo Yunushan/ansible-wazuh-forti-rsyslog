@@ -508,39 +508,20 @@
     - forti_wazuh_filebeat_archives_block.rc != 0
   notify: Restart filebeat
 
-- name: Check for archives block in Filebeat config (inline module)
-  ansible.builtin.shell: |
-    awk '
-      $1=="-" && $2=="module:" && $3=="wazuh" {in=1; next}
-      $1=="-" && $2=="module:" {in=0}
-      in && $1=="archives:" {found=1}
-      END {exit found?0:1}
-    ' {{ forti_wazuh_filebeat_config_path }}
-  register: forti_wazuh_filebeat_inline_archives_block
-  changed_when: false
-  failed_when: false
-  when:
-    - forti_wazuh_manage
-    - forti_wazuh_filebeat_manage
-    - forti_wazuh_filebeat_config.stat.exists
-    - not forti_wazuh_filebeat_module.stat.exists
-    - forti_wazuh_filebeat_module_inline_present | default(false)
-
-- name: Update archives enabled in Filebeat config (inline module)
+- name: Remove existing archives block in Filebeat config (inline module)
   ansible.builtin.replace:
     path: "{{ forti_wazuh_filebeat_config_path }}"
-    regexp: '(?ms)^([ \t]*- module:\s*wazuh\s*\n(?:^[ \t]+.*\n)*?^[ \t]+archives:\s*\n(?:^[ \t]+.*\n)*?^[ \t]+enabled:\s*)(true|false)'
-    replace: '\1{{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}'
+    regexp: '(?ms)^([ \t]*- module:\s*wazuh\s*\n(?:^[ \t]+.*\n)*?)^[ \t]{4}archives:\s*\n(?:^[ \t]{6,}.*\n)*'
+    replace: '\1'
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
     - forti_wazuh_filebeat_config.stat.exists
     - not forti_wazuh_filebeat_module.stat.exists
     - forti_wazuh_filebeat_module_inline_present | default(false)
-    - forti_wazuh_filebeat_inline_archives_block.rc == 0
   notify: Restart filebeat
 
-- name: Insert archives block in Filebeat config (inline module)
+- name: Ensure archives block in Filebeat config (inline module)
   ansible.builtin.blockinfile:
     path: "{{ forti_wazuh_filebeat_config_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH ARCHIVES INLINE"
@@ -552,7 +533,6 @@
     - forti_wazuh_filebeat_config.stat.exists
     - not forti_wazuh_filebeat_module.stat.exists
     - forti_wazuh_filebeat_module_inline_present | default(false)
-    - forti_wazuh_filebeat_inline_archives_block.rc != 0
   notify: Restart filebeat
 
 - name: Gather service facts (filebeat)
