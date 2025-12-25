@@ -54,5 +54,6 @@ forti_wazuh_log_format: syslog
 # forti_wazuh_dashboards_version: "2.x"
 # forti_wazuh_dashboards_validate_certs: false
 # forti_wazuh_dashboards_timezone: Etc/GMT-3
+# forti_wazuh_dashboards_tenant: global
 # forti_wazuh_dashboards_archives_pattern: wazuh-archives-*
 # forti_wazuh_dashboards_archives_time_field: timestamp

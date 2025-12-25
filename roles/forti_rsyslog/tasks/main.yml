@@ -637,6 +637,13 @@
             (forti_wazuh_dashboards_auth_method == "token")
             | ternary({"Authorization": "Bearer " ~ forti_wazuh_dashboards_token}, {})
           )
+        | combine(
+            (
+              (forti_wazuh_dashboards_tenant | length > 0)
+              and (forti_wazuh_dashboards_version | lower).startswith("2")
+            )
+            | ternary({"securitytenant": forti_wazuh_dashboards_tenant}, {})
+          )
       }}
   when: forti_wazuh_dashboards_manage
   no_log: true
