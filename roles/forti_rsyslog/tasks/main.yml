@@ -416,13 +416,14 @@
     owner: root
     group: root
     mode: "0644"
-    content: |
-      - type: {{ forti_wazuh_filebeat_input_type }}
-        enabled: {{ "true" if forti_wazuh_filebeat_archives_enabled else "false" }}
-        paths:
-{% for path in forti_wazuh_filebeat_archives_paths %}
-          - {{ path }}
-{% endfor %}
+    content: >-
+      {{ [
+          {
+            'type': forti_wazuh_filebeat_input_type,
+            'enabled': (forti_wazuh_filebeat_archives_enabled | bool),
+            'paths': forti_wazuh_filebeat_archives_paths
+          }
+        ] | to_nice_yaml(indent=2) }}
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
