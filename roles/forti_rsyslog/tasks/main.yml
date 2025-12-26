@@ -832,15 +832,14 @@
 - name: Prepare updated archives ingest pipeline
   ansible.builtin.set_fact:
     forti_wazuh_archives_pipeline_current: "{{ forti_wazuh_archives_pipeline_get.json[forti_wazuh_archives_pipeline_name_effective] }}"
-    forti_wazuh_archives_pipeline_processors_clean: >-
-      {{
-        (forti_wazuh_archives_pipeline_get.json[forti_wazuh_archives_pipeline_name_effective].processors | default([]))
-        | reject('search', 'forti_wazuh_archives_rule_level')
-        | list
-      }}
     forti_wazuh_archives_pipeline_processors_updated: >-
       {{
-        forti_wazuh_archives_pipeline_processors_clean + forti_wazuh_archives_pipeline_rule_level_processors
+        (
+          (forti_wazuh_archives_pipeline_get.json[forti_wazuh_archives_pipeline_name_effective].processors | default([]))
+          | reject('search', 'forti_wazuh_archives_rule_level')
+          | list
+        )
+        + forti_wazuh_archives_pipeline_rule_level_processors
       }}
   when:
     - forti_wazuh_archives_pipeline_manage
