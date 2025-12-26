@@ -835,7 +835,7 @@
     forti_wazuh_archives_pipeline_processors_clean: >-
       {{
         (forti_wazuh_archives_pipeline_get.json[forti_wazuh_archives_pipeline_name_effective].processors | default([]))
-        | rejectattr('tag', 'equalto', 'forti_wazuh_archives_rule_level')
+        | reject('search', 'forti_wazuh_archives_rule_level')
         | list
       }}
     forti_wazuh_archives_pipeline_processors_updated: >-
