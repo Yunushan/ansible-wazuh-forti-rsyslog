@@ -49,7 +49,7 @@ forti_wazuh_log_format: syslog
 # forti_wazuh_filebeat_inputs_reload: false
 # forti_wazuh_filebeat_input_type: log
 # forti_wazuh_archives_clear_severity: true   # set false to keep rule.level
-# forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
+forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
 # forti_wazuh_archives_include_severity: null # legacy override
 # forti_wazuh_filebeat_archives_paths:
 #   - /var/ossec/logs/archives/archives.json
