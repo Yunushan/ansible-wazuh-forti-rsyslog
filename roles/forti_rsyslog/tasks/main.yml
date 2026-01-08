@@ -177,13 +177,13 @@
     forti_wazuh_tuning_manage_effective: >-
       {{
         (forti_wazuh_tuning_manage is not none)
-        | ternary((forti_wazuh_tuning_manage | default(false)) | bool, (forti_wazuh_disable_modules | length > 0))
+        | ternary((forti_wazuh_tuning_manage | default(false, true)) | bool, (forti_wazuh_disable_modules | length > 0))
       }}
     forti_wazuh_ruleset_manage_effective: >-
       {{
         (forti_wazuh_ruleset_manage is not none)
         | ternary(
-            (forti_wazuh_ruleset_manage | default(false)) | bool,
+            (forti_wazuh_ruleset_manage | default(false, true)) | bool,
             (forti_wazuh_ruleset_rule_excludes_effective | length > 0)
             or (forti_wazuh_ruleset_decoder_excludes_effective | length > 0)
           )
