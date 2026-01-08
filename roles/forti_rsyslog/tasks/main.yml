@@ -707,8 +707,8 @@
         else (
           (forti_wazuh_archives_include_severity is defined and forti_wazuh_archives_include_severity is not none)
           | ternary(
-              (forti_wazuh_archives_include_severity | bool) | ternary('keep', 'drop'),
-              (forti_wazuh_archives_clear_severity | default(true) | bool) | ternary('drop', 'keep')
+              (forti_wazuh_archives_include_severity | default(false, true) | bool) | ternary('keep', 'drop'),
+              (forti_wazuh_archives_clear_severity | default(true, true) | bool) | ternary('drop', 'keep')
             )
         )
       }}
@@ -1127,7 +1127,7 @@
       {{
         (forti_backfill_enable is not none)
         | ternary(
-            forti_backfill_enable | bool,
+            (forti_backfill_enable | default(false, true)) | bool,
             (forti_backfill_source_path | length > 0)
             and (forti_backfill_output_path | length > 0)
             and (forti_backfill_start | length > 0)
@@ -1346,8 +1346,8 @@
         else (
           (forti_wazuh_archives_include_severity is defined and forti_wazuh_archives_include_severity is not none)
           | ternary(
-              (forti_wazuh_archives_include_severity | bool) | ternary('keep', 'drop'),
-              (forti_wazuh_archives_clear_severity | default(true) | bool) | ternary('drop', 'keep')
+              (forti_wazuh_archives_include_severity | default(false, true) | bool) | ternary('keep', 'drop'),
+              (forti_wazuh_archives_clear_severity | default(true, true) | bool) | ternary('drop', 'keep')
             )
         )
       }}
