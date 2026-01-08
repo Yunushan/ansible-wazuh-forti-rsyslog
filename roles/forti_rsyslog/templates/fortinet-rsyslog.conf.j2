@@ -27,6 +27,39 @@ ruleset(name="fortinet") {
   }
 {% endif %}
 
+{% if (forti_tuning_source_filter | default(false)) and (forti_syslog_traffic_patterns | default([]) | length > 0) %}
+  # Drop high-volume traffic logs to reduce Wazuh load.
+  if (
+    {%- for pattern in forti_syslog_traffic_patterns -%}
+    $msg contains "{{ pattern }}"{% if not loop.last %} or{% endif %}
+    {%- endfor -%}
+  ) then {
+    stop
+  }
+{% endif %}
+
+{% if (forti_tuning_split_traffic | default(false)) and (forti_syslog_traffic_patterns | default([]) | length > 0) %}
+  # Route traffic logs to a separate file so Wazuh does not ingest them.
+  if (
+    {%- for pattern in forti_syslog_traffic_patterns -%}
+    $msg contains "{{ pattern }}"{% if not loop.last %} or{% endif %}
+    {%- endfor -%}
+  ) then {
+    action(
+      type="omfile"
+      file="{{ forti_traffic_log_path }}"
+      template="RSYSLOG_TraditionalFileFormat"
+      dirCreateMode="{{ forti_log_dir_mode }}"
+      fileCreateMode="{{ forti_traffic_log_mode }}"
+      fileOwner="{{ forti_traffic_log_owner }}"
+      fileGroup="{{ forti_traffic_log_group }}"
+      createDirs="on"
+    )
+
+    stop
+  }
+{% endif %}
+
   action(
     type="omfile"
     file="{{ forti_log_path }}"

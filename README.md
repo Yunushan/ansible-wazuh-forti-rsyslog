@@ -128,6 +128,7 @@ This project configures **logrotate**.
 | `forti_logrotate_frequency` | `daily` | Rotation frequency (`daily`, `weekly`, etc.) |
 | `forti_log_retention_days` | `1` | Used when frequency is `daily` |
 | `forti_logrotate_rotate` | derived | Number of rotated files to keep |
+| `forti_logrotate_copytruncate` | `true` | Use copytruncate (set `false` to avoid losing backlog on rotation) |
 
 **Examples:**
 
@@ -148,6 +149,44 @@ Wazuh archives rotation (separate retention):
 
 **Note:** If your Wazuh package already ships `/etc/logrotate.d/wazuh` that manages archives, set `forti_wazuh_archives_logrotate_manage: false` to avoid duplicate logrotate entries.
 
+### Performance tuning / ingestion strategy
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_tuning_mode` | `"2"` | `1=source_filter` (drop traffic logs), `2=split_traffic` (separate traffic file + optional Filebeat), `3=wazuh_light` (disable archives), `auto=detect` |
+| `forti_syslog_traffic_patterns` | `["type=traffic"]` | Patterns used to match high-volume traffic logs |
+| `forti_traffic_log_filename` | `fortigate-traffic.log` | Traffic-only log file name (mode 2) |
+| `forti_traffic_log_path` | `{{ forti_log_dir }}/{{ forti_traffic_log_filename }}` | Full traffic log path (mode 2) |
+| `forti_traffic_filebeat_manage` | `null` | Auto-enable Filebeat input for traffic logs in mode 2 (set `true`/`false` to override) |
+| `forti_traffic_filebeat_enabled` | `true` | Enable traffic input in Filebeat |
+| `forti_traffic_filebeat_inputs_file` | `/etc/filebeat/inputs.d/fortinet-traffic.yml` | Traffic input file path |
+| `forti_traffic_filebeat_inputs_reload` | `false` | Reload inputs dynamically |
+| `forti_traffic_filebeat_restart` | `true` | Restart Filebeat after changes |
+
+**Notes:**
+- Mode 1 drops traffic logs at rsyslog. Wazuh never sees those events.
+- Mode 2 routes traffic logs to a separate file and (optionally) Filebeat. Wazuh sees only non-traffic logs.
+- Mode 3 sets `<logall>` and `<logall_json>` to `no`, which disables archives (alerts still work, archives index will be empty).
+- Auto mode picks `split_traffic` when `forti_traffic_filebeat_manage` is set, `wazuh_light` when both `forti_wazuh_logall` and `forti_wazuh_logall_json` are `no`, otherwise `source_filter`.
+
+### Backfill (optional)
+
+Use this to re-ingest a missing time window from a rotated Fortinet log.
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_backfill_enable` | `null` | Auto-enable when all backfill values are set (set `true`/`false` to override) |
+| `forti_backfill_source_path` | `""` | Source log (e.g., `/var/log/fortinet/fortigate.log-20260108`) |
+| `forti_backfill_output_path` | `""` | Output backfill file path |
+| `forti_backfill_start` | `""` | Start timestamp (`YYYY-MM-DD HH:MM:SS`, local time in log) |
+| `forti_backfill_end` | `""` | End timestamp (exclusive) |
+| `forti_backfill_force` | `false` | Overwrite backfill file if it already exists |
+| `forti_backfill_manage_localfile` | `true` | Add localfile entry so Wazuh ingests the backfill |
+| `forti_backfill_cleanup_localfile` | `false` | Remove the backfill localfile entry |
+| `forti_backfill_cleanup_file` | `false` | Remove the backfill file |
+
+**Note:** Backfill auto-runs when all values are set. Set `forti_backfill_enable: false` to suppress. Backfill is not idempotent for Wazuh; re-running with the same file can duplicate events. Enable it once, verify ingest, then set cleanup flags or remove the backfill config.
+
 ### Health checks
 
 | Variable | Default | Meaning |
@@ -166,12 +205,28 @@ Wazuh archives rotation (separate retention):
 | `forti_wazuh_logall` | `yes` | Value for `<logall>` |
 | `forti_wazuh_manage_logall_json` | `true` | Manage `<logall_json>` in `ossec.conf` |
 | `forti_wazuh_logall_json` | `yes` | Value for `<logall_json>` |
+
+### Wazuh manager tuning (optional)
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_tuning_manage` | `null` | Auto-enable when tuning lists are set (set `true`/`false` to override) |
+| `forti_wazuh_disable_modules` | `[]` | Module/wodle names to disable (e.g., `vulnerability-detector`, `syscollector`) |
+| `forti_wazuh_ruleset_manage` | `null` | Auto-enable when ruleset lists are set (set `true`/`false` to override) |
+| `forti_wazuh_ruleset_rule_excludes` | `[]` | Rule IDs to exclude from evaluation |
+| `forti_wazuh_ruleset_decoder_excludes` | `[]` | Decoder names to exclude |
+| `forti_wazuh_ruleset_exclude_forti` | `true` | Auto-exclude Fortinet rules files to suppress Forti alerts |
+| `forti_wazuh_ruleset_exclude_forti_patterns` | `["*fortigate*","*fortinet*"]` | Filename patterns used to find Fortinet rules |
+| `forti_wazuh_ruleset_dirs` | `[/var/ossec/ruleset/rules, /var/ossec/etc/rules]` | Ruleset directories to scan for auto excludes |
+| `forti_wazuh_root` | `/var/ossec` | Wazuh root used to build relative exclude paths |
+
+**Note:** By default, Fortinet rules are auto-excluded to keep Forti logs in archives only. Set `forti_wazuh_ruleset_exclude_forti: false` to keep alerts. Disabling modules and excluding rules can reduce CPU/RAM usage, but may reduce visibility. Apply conservatively.
 | `forti_wazuh_filebeat_manage` | `false` | Manage Filebeat Wazuh module archives settings |
 | `forti_wazuh_filebeat_module_path` | `/etc/filebeat/modules.d/wazuh.yml` | Path to Filebeat Wazuh module config |
 | `forti_wazuh_filebeat_archives_enabled` | `false` | Enable archives shipping in Filebeat |
 | `forti_wazuh_filebeat_archives_paths` | `[/var/ossec/logs/archives/archives.json]` | Paths for archives in Filebeat |
 | `forti_wazuh_archives_clear_severity` | `true` | Drop `rule.level` from archives events (set `false` to keep severity) |
-| `forti_wazuh_archives_severity_mode` | `""` | Override severity handling for archives: `drop`, `zero`, `keep` |
+| `forti_wazuh_archives_severity_mode` | `"drop"` | Override severity handling for archives: `drop`, `zero`, `keep` |
 | `forti_wazuh_archives_include_severity` | `null` | Legacy override: `true` keeps `rule.level`, `false` drops it |
 | `forti_wazuh_archives_pipeline_manage` | `false` | Manage OpenSearch ingest pipeline to enforce archives severity handling |
 | `forti_wazuh_opensearch_url` | `""` | OpenSearch URL (e.g., `https://127.0.0.1:9200`) |
@@ -235,11 +290,29 @@ forti_log_filename: fortigate.log
 
 # Keep 30 days of logs (daily rotation)
 forti_log_retention_days: 30
+forti_logrotate_copytruncate: false
 
 # (Optional) restrict who can send logs
 forti_syslog_allowed_senders:
   - "192.0.2.10"
   - "192.0.2.11"
+
+# (Optional) tune ingestion strategy (default is "2")
+# forti_tuning_mode: "2"  # 1=source_filter, 2=split_traffic, 3=wazuh_light, auto=detect
+# forti_syslog_traffic_patterns:
+#   - "type=traffic"
+# forti_traffic_log_filename: fortigate-traffic.log
+# forti_traffic_filebeat_manage: null
+
+# (Optional) backfill a missing window from a rotated log
+# forti_backfill_enable: true  # optional; auto if all values are set
+# forti_backfill_source_path: /var/log/fortinet/fortigate.log-20260108
+# forti_backfill_output_path: /var/log/fortinet/fortigate.backfill-20260107-1500_20260108-0200.log
+# forti_backfill_start: "2026-01-07 15:00:00"
+# forti_backfill_end: "2026-01-08 02:00:00"
+# forti_backfill_manage_localfile: true
+# forti_backfill_cleanup_localfile: false
+# forti_backfill_cleanup_file: false
 
 # Wazuh config path/service name (change if your install differs)
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf

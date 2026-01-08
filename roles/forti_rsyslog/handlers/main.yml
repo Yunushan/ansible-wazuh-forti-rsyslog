@@ -15,5 +15,5 @@
     name: "{{ forti_filebeat_service_name }}"
     state: restarted
   when:
-    - forti_wazuh_filebeat_restart | default(true)
+    - forti_filebeat_restart_effective | default(true)
     - forti_filebeat_service_present | default(true)

@@ -32,6 +32,57 @@ forti_logrotate_compress: true
 forti_logrotate_delaycompress: true
 forti_logrotate_copytruncate: true
 
+# --- Performance tuning (reduce Wazuh load) ---
+# Tuning mode: "1" (source_filter), "2" (split_traffic), "3" (wazuh_light), "auto" (opt-in auto detect)
+forti_tuning_mode: "2"
+
+# Patterns that identify high-volume traffic logs (modes 1 and 2).
+forti_syslog_traffic_patterns:
+  - "type=traffic"
+
+# Split-traffic mode: separate log path for traffic-only events.
+forti_traffic_log_filename: fortigate-traffic.log
+forti_traffic_log_path: "{{ forti_log_dir }}/{{ forti_traffic_log_filename }}"
+forti_traffic_log_owner: "{{ forti_log_owner }}"
+forti_traffic_log_group: "{{ forti_log_group }}"
+forti_traffic_log_mode: "{{ forti_log_file_mode }}"
+
+# Split-traffic mode: optional Filebeat input for traffic logs.
+forti_traffic_filebeat_manage: null  # null = auto (enabled for split_traffic)
+forti_traffic_filebeat_enabled: true
+forti_traffic_filebeat_config_path: /etc/filebeat/filebeat.yml
+forti_traffic_filebeat_inputs_manage: true
+forti_traffic_filebeat_inputs_dir: /etc/filebeat/inputs.d
+forti_traffic_filebeat_inputs_file: /etc/filebeat/inputs.d/fortinet-traffic.yml
+forti_traffic_filebeat_inputs_glob: /etc/filebeat/inputs.d/*.yml
+forti_traffic_filebeat_inputs_reload: false
+forti_traffic_filebeat_input_type: log
+forti_traffic_filebeat_restart: true
+forti_traffic_filebeat_fields_under_root: true
+forti_traffic_filebeat_fields:
+  event:
+    module: fortinet
+    dataset: fortinet.traffic
+forti_traffic_filebeat_tags:
+  - fortinet
+  - traffic
+
+# --- Backfill (optional) ---
+# If null, backfill auto-enables when all backfill values are set.
+forti_backfill_enable: null
+forti_backfill_source_path: ""
+forti_backfill_output_path: ""
+forti_backfill_start: ""
+forti_backfill_end: ""
+forti_backfill_force: false
+forti_backfill_owner: "{{ forti_log_owner }}"
+forti_backfill_group: "{{ forti_log_group }}"
+forti_backfill_mode: "{{ forti_log_file_mode }}"
+forti_backfill_manage_localfile: true
+forti_backfill_log_format: "{{ forti_wazuh_log_format }}"
+forti_backfill_cleanup_localfile: false
+forti_backfill_cleanup_file: false
+
 # --- Wazuh archives logrotate (separate retention) ---
 forti_wazuh_archives_logrotate_manage: true
 forti_wazuh_archives_logrotate_conf_path: /etc/logrotate.d/wazuh-archives
@@ -70,6 +121,26 @@ forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
 forti_wazuh_log_format: syslog
 
+# --- Wazuh manager tuning (optional) ---
+# If null, tuning auto-enables when any tuning list is non-empty.
+forti_wazuh_tuning_manage: null
+# Disable specific Wazuh modules (wodle/module name values).
+forti_wazuh_disable_modules: []
+# If null, ruleset tuning auto-enables when any ruleset list is non-empty.
+forti_wazuh_ruleset_manage: null
+# Exclude noisy rules/decoders to reduce analysis load.
+forti_wazuh_ruleset_rule_excludes: []
+forti_wazuh_ruleset_decoder_excludes: []
+# Auto-exclude Fortinet rules to keep Forti logs out of alerts by default.
+forti_wazuh_ruleset_exclude_forti: true
+forti_wazuh_ruleset_exclude_forti_patterns:
+  - "*fortigate*"
+  - "*fortinet*"
+forti_wazuh_root: /var/ossec
+forti_wazuh_ruleset_dirs:
+  - "{{ forti_wazuh_root }}/ruleset/rules"
+  - "{{ forti_wazuh_root }}/etc/rules"
+
 # Ensure archive settings are enabled in ossec.conf (global section).
 forti_wazuh_manage_logall: true
 forti_wazuh_logall: "yes"
@@ -86,7 +157,7 @@ forti_wazuh_filebeat_archives_paths:
 # Set false to keep severity, or use the mode override below.
 forti_wazuh_archives_clear_severity: true
 # Mode override (highest priority): "drop" (remove rule.level), "zero" (set rule.level=0), "keep" (preserve).
-forti_wazuh_archives_severity_mode: ""
+forti_wazuh_archives_severity_mode: "drop"
 # Legacy boolean override (deprecated): true keeps rule.level; false drops it.
 forti_wazuh_archives_include_severity: null
 

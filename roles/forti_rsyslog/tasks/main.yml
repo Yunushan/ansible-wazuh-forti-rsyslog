@@ -12,6 +12,204 @@
       - (forti_log_retention_days | int) > 0
     fail_msg: "forti_log_retention_days must be a positive integer (e.g., 14, 30, 60)."
 
+- name: Validate tuning mode
+  ansible.builtin.assert:
+    that:
+      - forti_tuning_mode is none or (forti_tuning_mode | string | lower | trim) in ["1", "2", "3", "source_filter", "split_traffic", "wazuh_light", "auto"]
+    fail_msg: >-
+      forti_tuning_mode must be one of: 1, 2, 3, source_filter, split_traffic, wazuh_light, auto.
+
+- name: Determine tuning mode input
+  ansible.builtin.set_fact:
+    forti_tuning_mode_input: "{{ (forti_tuning_mode | default('1')) | string | lower | trim }}"
+    forti_tuning_auto_enabled: "{{ (forti_tuning_mode is none) or ((forti_tuning_mode | string | lower | trim) == 'auto') }}"
+
+- name: Determine tuning mode (auto)
+  ansible.builtin.set_fact:
+    forti_tuning_mode_auto: >-
+      {{
+        'split_traffic'
+        if (forti_traffic_filebeat_manage is not none)
+        else (
+          'wazuh_light'
+          if (
+            forti_wazuh_manage_logall
+            and forti_wazuh_manage_logall_json
+            and (forti_wazuh_logall | string | lower | trim) in ['no', 'false', '0']
+            and (forti_wazuh_logall_json | string | lower | trim) in ['no', 'false', '0']
+          )
+          else 'source_filter'
+        )
+      }}
+  when: forti_tuning_auto_enabled
+
+- name: Determine tuning mode effective
+  ansible.builtin.set_fact:
+    forti_tuning_mode_effective: >-
+      {{
+        forti_tuning_mode_auto
+        if forti_tuning_auto_enabled
+        else (
+          'source_filter' if forti_tuning_mode_input in ['1', 'source_filter']
+          else 'split_traffic' if forti_tuning_mode_input in ['2', 'split_traffic']
+          else 'wazuh_light' if forti_tuning_mode_input in ['3', 'wazuh_light']
+          else forti_tuning_mode_input
+        )
+      }}
+
+- name: Report tuning mode auto selection
+  ansible.builtin.debug:
+    msg: "forti_tuning_mode auto selected '{{ forti_tuning_mode_effective }}'."
+  when: forti_tuning_auto_enabled
+
+- name: Set tuning flags
+  ansible.builtin.set_fact:
+    forti_tuning_source_filter: "{{ forti_tuning_mode_effective == 'source_filter' }}"
+    forti_tuning_split_traffic: "{{ forti_tuning_mode_effective == 'split_traffic' }}"
+    forti_tuning_wazuh_light: "{{ forti_tuning_mode_effective == 'wazuh_light' }}"
+    forti_traffic_filebeat_manage_effective: >-
+      {{
+        forti_traffic_filebeat_manage
+        if (forti_traffic_filebeat_manage is not none)
+        else (forti_tuning_mode_effective == 'split_traffic')
+      }}
+
+- name: Determine Filebeat restart behavior
+  ansible.builtin.set_fact:
+    forti_filebeat_restart_effective: >-
+      {{
+        (forti_wazuh_filebeat_manage and (forti_wazuh_filebeat_restart | default(true)))
+        or (forti_traffic_filebeat_manage_effective and (forti_traffic_filebeat_restart | default(true)))
+      }}
+
+- name: Validate traffic patterns for tuning mode
+  ansible.builtin.assert:
+    that:
+      - forti_syslog_traffic_patterns | length > 0
+    fail_msg: >-
+      forti_syslog_traffic_patterns must be set when forti_tuning_mode is source_filter or split_traffic.
+  when: forti_tuning_mode_effective in ["source_filter", "split_traffic"]
+
+- name: Determine Wazuh logall settings for tuning mode
+  ansible.builtin.set_fact:
+    forti_wazuh_manage_logall_effective: >-
+      {{ true if forti_tuning_wazuh_light else forti_wazuh_manage_logall }}
+    forti_wazuh_logall_effective: >-
+      {{ "no" if forti_tuning_wazuh_light else forti_wazuh_logall }}
+    forti_wazuh_manage_logall_json_effective: >-
+      {{ true if forti_tuning_wazuh_light else forti_wazuh_manage_logall_json }}
+    forti_wazuh_logall_json_effective: >-
+      {{ "no" if forti_tuning_wazuh_light else forti_wazuh_logall_json }}
+
+- name: Detect Wazuh ruleset directories (auto Fortinet exclude)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: forti_wazuh_ruleset_dir_stats
+  loop: "{{ forti_wazuh_ruleset_dirs }}"
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_ruleset_exclude_forti | bool
+
+- name: Build Wazuh ruleset directories list (auto Fortinet exclude)
+  ansible.builtin.set_fact:
+    forti_wazuh_ruleset_dirs_effective: >-
+      {{
+        forti_wazuh_ruleset_dir_stats.results
+        | selectattr('stat.exists', 'equalto', true)
+        | map(attribute='item')
+        | list
+      }}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_ruleset_exclude_forti | bool
+
+- name: Find Fortinet ruleset files (auto exclude)
+  ansible.builtin.find:
+    paths: "{{ forti_wazuh_ruleset_dirs_effective }}"
+    patterns: "{{ forti_wazuh_ruleset_exclude_forti_patterns }}"
+    file_type: file
+  register: forti_wazuh_ruleset_forti_files
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_ruleset_exclude_forti | bool
+    - forti_wazuh_ruleset_dirs_effective | length > 0
+
+- name: Build auto ruleset excludes (Fortinet)
+  ansible.builtin.set_fact:
+    forti_wazuh_ruleset_rule_excludes_auto: >-
+      {{
+        forti_wazuh_ruleset_forti_files.files
+        | map(attribute='path')
+        | map('regex_replace', '^' ~ forti_wazuh_root ~ '/', '')
+        | list
+      }}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_ruleset_exclude_forti | bool
+    - forti_wazuh_ruleset_forti_files is defined
+
+- name: Default auto ruleset excludes to empty
+  ansible.builtin.set_fact:
+    forti_wazuh_ruleset_rule_excludes_auto: []
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_ruleset_exclude_forti | bool
+    - forti_wazuh_ruleset_rule_excludes_auto is not defined
+
+- name: Determine Wazuh ruleset exclude lists
+  ansible.builtin.set_fact:
+    forti_wazuh_ruleset_rule_excludes_effective: >-
+      {{
+        (forti_wazuh_ruleset_rule_excludes
+        + (forti_wazuh_ruleset_rule_excludes_auto | default([])))
+        | unique
+      }}
+    forti_wazuh_ruleset_decoder_excludes_effective: "{{ forti_wazuh_ruleset_decoder_excludes }}"
+
+- name: Determine Wazuh manager tuning enablement
+  ansible.builtin.set_fact:
+    forti_wazuh_tuning_values_set: >-
+      {{
+        (forti_wazuh_disable_modules | length > 0) or
+        (forti_wazuh_ruleset_rule_excludes_effective | length > 0) or
+        (forti_wazuh_ruleset_decoder_excludes_effective | length > 0)
+      }}
+    forti_wazuh_tuning_manage_effective: >-
+      {{
+        (forti_wazuh_tuning_manage is not none)
+        | ternary(forti_wazuh_tuning_manage | bool, (forti_wazuh_disable_modules | length > 0))
+      }}
+    forti_wazuh_ruleset_manage_effective: >-
+      {{
+        (forti_wazuh_ruleset_manage is not none)
+        | ternary(
+            forti_wazuh_ruleset_manage | bool,
+            (forti_wazuh_ruleset_rule_excludes_effective | length > 0)
+            or (forti_wazuh_ruleset_decoder_excludes_effective | length > 0)
+          )
+      }}
+
+- name: Validate Wazuh manager tuning values
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_tuning_values_set or (not forti_wazuh_tuning_manage_effective | bool)
+    fail_msg: "Wazuh tuning is enabled but no tuning values are set."
+
+- name: Validate Wazuh ruleset tuning values
+  ansible.builtin.assert:
+    that:
+      - (forti_wazuh_ruleset_rule_excludes_effective | length > 0)
+        or (forti_wazuh_ruleset_decoder_excludes_effective | length > 0)
+        or (not forti_wazuh_ruleset_manage_effective | bool)
+    fail_msg: "Ruleset tuning is enabled but no rule/decoder excludes are set."
+
+- name: Warn when Wazuh light mode disables archives
+  ansible.builtin.debug:
+    msg: >-
+      forti_tuning_mode=wazuh_light disables logall/logall_json (archives).
+      Alerts still work, but archives indices will be empty.
+  when: forti_tuning_wazuh_light
+
 - name: Validate archives severity mode
   ansible.builtin.assert:
     that:
@@ -78,6 +276,15 @@
     owner: "{{ forti_log_owner }}"
     group: "{{ forti_log_group }}"
     mode: "{{ forti_log_file_mode }}"
+
+- name: Ensure Fortinet traffic log file exists (split mode)
+  ansible.builtin.file:
+    path: "{{ forti_traffic_log_path }}"
+    state: touch
+    owner: "{{ forti_traffic_log_owner }}"
+    group: "{{ forti_traffic_log_group }}"
+    mode: "{{ forti_traffic_log_mode }}"
+  when: forti_tuning_split_traffic
 
 - name: Deploy rsyslog configuration for Fortinet
   ansible.builtin.template:
@@ -350,24 +557,129 @@
   ansible.builtin.lineinfile:
     path: "{{ forti_wazuh_ossec_conf_path }}"
     regexp: '^\s*<logall>.*</logall>'
-    line: "  <logall>{{ forti_wazuh_logall }}</logall>"
+    line: "  <logall>{{ forti_wazuh_logall_effective }}</logall>"
     insertafter: '^\s*<global>'
   when:
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
-    - forti_wazuh_manage_logall
+    - forti_wazuh_manage_logall_effective
   notify: Restart wazuh-manager
 
 - name: Ensure Wazuh logall_json is configured (ossec.conf)
   ansible.builtin.lineinfile:
     path: "{{ forti_wazuh_ossec_conf_path }}"
     regexp: '^\s*<logall_json>.*</logall_json>'
-    line: "  <logall_json>{{ forti_wazuh_logall_json }}</logall_json>"
+    line: "  <logall_json>{{ forti_wazuh_logall_json_effective }}</logall_json>"
     insertafter: '^\s*<global>'
   when:
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
-    - forti_wazuh_manage_logall_json
+    - forti_wazuh_manage_logall_json_effective
+  notify: Restart wazuh-manager
+
+- name: Check for Wazuh ruleset block
+  ansible.builtin.command: "grep -Eq '^\\s*<ruleset>' {{ forti_wazuh_ossec_conf_path }}"
+  register: forti_wazuh_ruleset_present
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_ruleset_manage_effective
+
+- name: Tune Wazuh ruleset in existing block
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI WAZUH RULE TUNING -->"
+    insertafter: '^\s*<ruleset>'
+    block: |2
+      {%- for rule_id in forti_wazuh_ruleset_rule_excludes_effective %}
+      <rule_exclude>{{ rule_id }}</rule_exclude>
+      {%- endfor %}
+      {%- for decoder_name in forti_wazuh_ruleset_decoder_excludes_effective %}
+      <decoder_exclude>{{ decoder_name }}</decoder_exclude>
+      {%- endfor %}
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_ruleset_manage_effective
+    - forti_wazuh_ruleset_present.rc == 0
+  notify: Restart wazuh-manager
+
+- name: Add Wazuh ruleset block for tuning
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI WAZUH RULESET -->"
+    insertbefore: "{{ forti_wazuh_insert_before_regex }}"
+    block: |2
+      <ruleset>
+      {%- for rule_id in forti_wazuh_ruleset_rule_excludes_effective %}
+        <rule_exclude>{{ rule_id }}</rule_exclude>
+      {%- endfor %}
+      {%- for decoder_name in forti_wazuh_ruleset_decoder_excludes_effective %}
+        <decoder_exclude>{{ decoder_name }}</decoder_exclude>
+      {%- endfor %}
+      </ruleset>
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_ruleset_manage_effective
+    - forti_wazuh_ruleset_present.rc != 0
+  notify: Restart wazuh-manager
+
+- name: Check for Wazuh module blocks to disable
+  ansible.builtin.command: "grep -Eq '<wodle[^>]*name=\"{{ item }}\"' {{ forti_wazuh_ossec_conf_path }}"
+  register: forti_wazuh_wodle_present
+  changed_when: false
+  failed_when: false
+  loop: "{{ forti_wazuh_disable_modules }}"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_tuning_manage_effective
+    - forti_wazuh_disable_modules | length > 0
+
+- name: Disable Wazuh modules in existing wodle blocks
+  ansible.builtin.replace:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    regexp: '(?ms)(<wodle\\s+name="{{ item.item }}"[^>]*>.*?<disabled>)([^<]*)(</disabled>)'
+    replace: '\1yes\3'
+  loop: "{{ forti_wazuh_wodle_present.results | default([]) }}"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_tuning_manage_effective
+    - item.rc == 0
+  notify: Restart wazuh-manager
+
+- name: Add disabled flag to wodle blocks missing it
+  ansible.builtin.replace:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    regexp: '(?ms)(<wodle\\s+name="{{ item.item }}"[^>]*>)(?!.*?<disabled>)(.*?)</wodle>'
+    replace: '\1\n  <disabled>yes</disabled>\2</wodle>'
+  loop: "{{ forti_wazuh_wodle_present.results | default([]) }}"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_tuning_manage_effective
+    - item.rc == 0
+  notify: Restart wazuh-manager
+
+- name: Add Wazuh module disable blocks when missing
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI WAZUH MODULE {{ item.item }} -->"
+    insertbefore: "{{ forti_wazuh_insert_before_regex }}"
+    block: |2
+      <wodle name="{{ item.item }}">
+        <disabled>yes</disabled>
+      </wodle>
+  loop: "{{ forti_wazuh_wodle_present.results | default([]) }}"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_tuning_manage_effective
+    - item.rc != 0
   notify: Restart wazuh-manager
 
 - name: Check for Filebeat Wazuh module config
@@ -662,6 +974,90 @@
     - forti_wazuh_filebeat_module_inline_present | default(false)
   notify: Restart filebeat
 
+- name: Check for Filebeat config (traffic)
+  ansible.builtin.stat:
+    path: "{{ forti_traffic_filebeat_config_path }}"
+  register: forti_traffic_filebeat_config
+  when: forti_traffic_filebeat_manage_effective | bool
+
+- name: Warn if Filebeat config is missing (traffic)
+  ansible.builtin.debug:
+    msg: >-
+      Filebeat config not found at {{ forti_traffic_filebeat_config_path }}.
+      Fortinet traffic shipping may be skipped.
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - not forti_traffic_filebeat_config.stat.exists
+
+- name: Check for filebeat.config.inputs in Filebeat config (traffic)
+  ansible.builtin.command: "grep -Eq '^filebeat\\.config\\.inputs:' {{ forti_traffic_filebeat_config_path }}"
+  register: forti_traffic_filebeat_inputs_block
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - forti_traffic_filebeat_inputs_manage
+    - forti_traffic_filebeat_config.stat.exists
+
+- name: Ensure Filebeat inputs directory exists (traffic)
+  ansible.builtin.file:
+    path: "{{ forti_traffic_filebeat_inputs_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - forti_traffic_filebeat_inputs_manage
+    - forti_traffic_filebeat_config.stat.exists
+
+- name: Ensure filebeat.config.inputs is configured (traffic)
+  ansible.builtin.blockinfile:
+    path: "{{ forti_traffic_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI TRAFFIC INPUTS CONFIG"
+    block: |
+      filebeat.config.inputs:
+        enabled: true
+        path: {{ forti_traffic_filebeat_inputs_glob }}
+        reload.enabled: {{ "true" if forti_traffic_filebeat_inputs_reload else "false" }}
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - forti_traffic_filebeat_inputs_manage
+    - forti_traffic_filebeat_config.stat.exists
+    - forti_traffic_filebeat_inputs_block.rc != 0
+  notify: Restart filebeat
+
+- name: Write Fortinet traffic Filebeat input
+  ansible.builtin.copy:
+    dest: "{{ forti_traffic_filebeat_inputs_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ [
+          {
+            'type': forti_traffic_filebeat_input_type,
+            'enabled': (forti_traffic_filebeat_enabled | bool),
+            'paths': [forti_traffic_log_path],
+            'tags': forti_traffic_filebeat_tags,
+            'fields_under_root': (forti_traffic_filebeat_fields_under_root | bool),
+            'fields': forti_traffic_filebeat_fields
+          }
+        ] | to_nice_yaml(indent=2) }}
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - forti_traffic_filebeat_inputs_manage
+    - forti_traffic_filebeat_config.stat.exists
+  notify: Restart filebeat
+
+- name: Remove Fortinet traffic Filebeat input when disabled
+  ansible.builtin.file:
+    path: "{{ forti_traffic_filebeat_inputs_file }}"
+    state: absent
+  when:
+    - not (forti_traffic_filebeat_manage_effective | bool)
+    - forti_traffic_filebeat_inputs_manage
+
 - name: Gather service facts (filebeat)
   ansible.builtin.service_facts:
   when:
@@ -676,6 +1072,19 @@
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
     - forti_wazuh_filebeat_module.stat.exists or forti_wazuh_filebeat_config.stat.exists
+
+- name: Gather service facts (filebeat - traffic)
+  ansible.builtin.service_facts:
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - forti_traffic_filebeat_config.stat.exists
+
+- name: Determine if Filebeat service exists (traffic)
+  ansible.builtin.set_fact:
+    forti_filebeat_service_present: "{{ forti_filebeat_service_name in ansible_facts.services }}"
+  when:
+    - forti_traffic_filebeat_manage_effective | bool
+    - forti_traffic_filebeat_config.stat.exists
 
 - name: Gather service facts (for safe Wazuh restarts)
   ansible.builtin.service_facts:
@@ -704,6 +1113,140 @@
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
   notify: Restart wazuh-manager
+
+- name: Determine backfill enablement
+  ansible.builtin.set_fact:
+    forti_backfill_values_set: >-
+      {{
+        (forti_backfill_source_path | length > 0) | int
+        + (forti_backfill_output_path | length > 0) | int
+        + (forti_backfill_start | length > 0) | int
+        + (forti_backfill_end | length > 0) | int
+      }}
+    forti_backfill_enable_effective: >-
+      {{
+        (forti_backfill_enable is not none)
+        | ternary(
+            forti_backfill_enable | bool,
+            (forti_backfill_source_path | length > 0)
+            and (forti_backfill_output_path | length > 0)
+            and (forti_backfill_start | length > 0)
+            and (forti_backfill_end | length > 0)
+          )
+      }}
+
+- name: Validate backfill values completeness
+  ansible.builtin.assert:
+    that:
+      - forti_backfill_values_set == 0 or forti_backfill_values_set == 4
+    fail_msg: >-
+      Backfill requires all of forti_backfill_source_path, forti_backfill_output_path,
+      forti_backfill_start, and forti_backfill_end (or set none).
+
+- name: Validate backfill settings
+  ansible.builtin.assert:
+    that:
+      - forti_backfill_source_path | length > 0
+      - forti_backfill_output_path | length > 0
+      - forti_backfill_start | length > 0
+      - forti_backfill_end | length > 0
+    fail_msg: >-
+      Backfill requires forti_backfill_source_path, forti_backfill_output_path,
+      forti_backfill_start, and forti_backfill_end.
+  when: forti_backfill_enable_effective
+
+- name: Check backfill source log
+  ansible.builtin.stat:
+    path: "{{ forti_backfill_source_path }}"
+  register: forti_backfill_source_stat
+  when: forti_backfill_enable_effective
+
+- name: Fail if backfill source log is missing
+  ansible.builtin.assert:
+    that:
+      - forti_backfill_source_stat.stat.exists
+    fail_msg: "Backfill source log not found at {{ forti_backfill_source_path }}."
+  when: forti_backfill_enable_effective
+
+- name: Ensure backfill output directory exists
+  ansible.builtin.file:
+    path: "{{ forti_backfill_output_path | dirname }}"
+    state: directory
+    owner: "{{ forti_backfill_owner }}"
+    group: "{{ forti_backfill_group }}"
+    mode: "{{ forti_log_dir_mode }}"
+  when: forti_backfill_enable_effective
+
+- name: Build backfill file
+  ansible.builtin.shell: |
+    awk -v start="{{ forti_backfill_start }}" -v end="{{ forti_backfill_end }}" '
+      match($0,/date=([0-9-]+)/,d) && match($0,/time=([0-9:]+)/,t) {
+        ts=d[1]" "t[1];
+        if (ts >= start && ts < end) print;
+      }' "{{ forti_backfill_source_path }}" > "{{ forti_backfill_output_path }}"
+  args:
+    creates: "{{ (forti_backfill_force | bool) | ternary(omit, forti_backfill_output_path) }}"
+  when: forti_backfill_enable_effective
+
+- name: Set backfill file permissions
+  ansible.builtin.file:
+    path: "{{ forti_backfill_output_path }}"
+    state: file
+    owner: "{{ forti_backfill_owner }}"
+    group: "{{ forti_backfill_group }}"
+    mode: "{{ forti_backfill_mode }}"
+  when: forti_backfill_enable_effective
+
+- name: Validate backfill localfile settings
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_manage
+      - wazuh_ossec_conf.stat.exists
+    fail_msg: "Backfill localfile management requires Wazuh and ossec.conf."
+  when:
+    - forti_backfill_enable_effective
+    - forti_backfill_manage_localfile
+
+- name: Add Fortinet backfill localfile entry to Wazuh (ossec.conf)
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI BACKFILL -->"
+    insertbefore: "{{ forti_wazuh_insert_before_regex }}"
+    block: |2
+      <localfile>
+        <location>{{ forti_backfill_output_path }}</location>
+        <log_format>{{ forti_backfill_log_format }}</log_format>
+      </localfile>
+  when:
+    - forti_backfill_enable_effective
+    - forti_backfill_manage_localfile
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+  notify: Restart wazuh-manager
+
+- name: Validate backfill cleanup settings
+  ansible.builtin.assert:
+    that:
+      - forti_backfill_output_path | length > 0
+    fail_msg: "Backfill cleanup requires forti_backfill_output_path."
+  when: forti_backfill_cleanup_file | bool
+
+- name: Remove Fortinet backfill localfile entry (cleanup)
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI BACKFILL -->"
+    state: absent
+  when:
+    - forti_backfill_cleanup_localfile | bool
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+  notify: Restart wazuh-manager
+
+- name: Remove backfill file (cleanup)
+  ansible.builtin.file:
+    path: "{{ forti_backfill_output_path }}"
+    state: absent
+  when: forti_backfill_cleanup_file | bool
 
 - name: Warn if Wazuh service was not detected (restart skipped)
   ansible.builtin.debug:

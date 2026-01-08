@@ -25,6 +25,25 @@ forti_log_filename: fortigate.log
 # --- Retention ---
 forti_logrotate_frequency: daily
 forti_log_retention_days: 1
+# Avoid truncating active logs so Wazuh can catch up after rotation.
+forti_logrotate_copytruncate: false
+
+# --- Performance tuning (select mode) ---
+# forti_tuning_mode: "2"  # 1=source_filter, 2=split_traffic, 3=wazuh_light, auto=detect
+# forti_syslog_traffic_patterns:
+#   - "type=traffic"
+# forti_traffic_log_filename: fortigate-traffic.log
+# forti_traffic_filebeat_manage: null
+
+# --- Backfill (optional) ---
+# forti_backfill_enable: true  # optional; auto if all values are set
+# forti_backfill_source_path: /var/log/fortinet/fortigate.log-20260108
+# forti_backfill_output_path: /var/log/fortinet/fortigate.backfill-20260107-1500_20260108-0200.log
+# forti_backfill_start: "2026-01-07 15:00:00"
+# forti_backfill_end: "2026-01-08 02:00:00"
+# forti_backfill_manage_localfile: true
+# forti_backfill_cleanup_localfile: false
+# forti_backfill_cleanup_file: false
 
 # --- Wazuh archives rotation (optional) ---
 # forti_wazuh_archives_logrotate_manage: true
@@ -37,6 +56,25 @@ forti_wazuh_manage: true
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
 forti_wazuh_log_format: syslog
+
+# --- Wazuh manager tuning (optional) ---
+# forti_wazuh_tuning_manage: null
+# forti_wazuh_disable_modules:
+#   - vulnerability-detector
+#   - syscollector
+# forti_wazuh_ruleset_manage: null
+# forti_wazuh_ruleset_rule_excludes:
+#   - 1002
+# forti_wazuh_ruleset_decoder_excludes:
+#   - syslog
+# forti_wazuh_ruleset_exclude_forti: true
+# forti_wazuh_ruleset_exclude_forti_patterns:
+#   - "*fortigate*"
+#   - "*fortinet*"
+# forti_wazuh_root: /var/ossec
+# forti_wazuh_ruleset_dirs:
+#   - "{{ forti_wazuh_root }}/ruleset/rules"
+#   - "{{ forti_wazuh_root }}/etc/rules"
 
 # --- Filebeat archives shipping (optional) ---
 # forti_wazuh_filebeat_manage: true

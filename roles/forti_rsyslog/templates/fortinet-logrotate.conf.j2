@@ -1,5 +1,5 @@
 # Ansible managed: logrotate for Fortinet syslog
-{{ forti_log_path }} {
+{{ forti_log_path }}{% if forti_tuning_split_traffic | default(false) %} {{ forti_traffic_log_path }}{% endif %} {
     {{ forti_logrotate_frequency }}
     rotate {{ forti_logrotate_rotate }}
     missingok
