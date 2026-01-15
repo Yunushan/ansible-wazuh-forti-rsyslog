@@ -16,9 +16,9 @@ forti_log_filename: fortigate.log
 forti_log_path: "{{ forti_log_dir }}/{{ forti_log_filename }}"
 
 forti_log_dir_mode: "0750"
-forti_log_file_mode: "0640"
+forti_log_file_mode: "0644"
 forti_log_owner: syslog
-forti_log_group: syslog
+forti_log_group: wazuh
 
 # --- Log retention / rotation (duration adjustable) ---
 forti_logrotate_frequency: daily   # daily/weekly/monthly/yearly

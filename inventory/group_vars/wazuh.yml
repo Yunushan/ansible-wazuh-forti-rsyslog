@@ -21,6 +21,9 @@ forti_syslog_allowed_senders: []
 # --- Storage paths ---
 forti_log_dir: /var/log/fortinet
 forti_log_filename: fortigate.log
+# forti_log_owner: syslog
+# forti_log_group: wazuh
+# forti_log_file_mode: "0644"
 
 # --- Retention ---
 forti_logrotate_frequency: daily

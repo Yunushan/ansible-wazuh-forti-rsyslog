@@ -118,7 +118,8 @@ All defaults live in `roles/forti_rsyslog/defaults/main.yml`. Override them in y
 | `forti_log_filename` | `fortigate.log` | Log file name |
 | `forti_log_path` | `{{ forti_log_dir }}/{{ forti_log_filename }}` | Full log file path |
 | `forti_log_owner` | `syslog` | Owner for the Fortinet log path |
-| `forti_log_group` | `syslog` | Group for the Fortinet log path |
+| `forti_log_group` | `wazuh` | Group for the Fortinet log path |
+| `forti_log_file_mode` | `0644` | File mode for the Fortinet log file |
 
 ### Log retention (adjustable)
 
