@@ -3,14 +3,14 @@
 {% if forti_wazuh_fortinet_alerts_map | length > 0 %}
 {% for item in forti_wazuh_fortinet_alerts_map %}
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + loop.index0 }}" level="{{ item.level | int }}">
-    <match>{{ forti_wazuh_fortinet_alerts_match_field }}="?{{ item.match | string }}"?</match>
+    <regex>{{ forti_wazuh_fortinet_alerts_match_field }}="?{{ item.match | string }}"?</regex>
     <description>Fortinet alert level {{ item.level | int }}</description>
   </rule>
 {% endfor %}
 {% else %}
 {% for level in forti_wazuh_fortinet_alerts_levels_effective %}
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + loop.index0 }}" level="{{ level | int }}">
-    <match>{{ forti_wazuh_fortinet_alerts_match_field }}="?{{ level }}"?</match>
+    <regex>{{ forti_wazuh_fortinet_alerts_match_field }}="?{{ level }}"?</regex>
     <description>Fortinet alert level {{ level | int }}</description>
   </rule>
 {% endfor %}
