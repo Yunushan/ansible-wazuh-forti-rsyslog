@@ -149,15 +149,14 @@ forti_wazuh_fortinet_alerts_levels:
   - 13
   - 14
   - 15
-# Optional mapping for string severities (overrides levels list when non-empty).
-# Example:
-# forti_wazuh_fortinet_alerts_map:
-#   - match: high
-#     level: 12
-#   - match: critical
-#     level: 15
-forti_wazuh_fortinet_alerts_map: []
-forti_wazuh_fortinet_alerts_match_field: "level"
+# Mapping for string severities (overrides levels list when non-empty).
+# Clear this list to use numeric levels instead.
+forti_wazuh_fortinet_alerts_map:
+  - match: high
+    level: 12
+  - match: critical
+    level: 15
+forti_wazuh_fortinet_alerts_match_field: "crlevel"
 forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
 forti_wazuh_fortinet_alerts_rule_id_base: 100300
 
