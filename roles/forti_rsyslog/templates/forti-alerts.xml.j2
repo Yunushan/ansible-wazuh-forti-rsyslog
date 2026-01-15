@@ -1,0 +1,9 @@
+<!-- Ansible managed: Fortinet high/critical alerts -->
+<group name="fortinet,">
+{% for level in forti_wazuh_fortinet_alerts_levels_effective %}
+  <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + loop.index0 }}" level="{{ level | int }}">
+    <match>{{ forti_wazuh_fortinet_alerts_match_field }}={{ level | int }}</match>
+    <description>Fortinet alert level {{ level }}</description>
+  </rule>
+{% endfor %}
+</group>

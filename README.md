@@ -18,6 +18,7 @@ It focuses on **configuration** (rsyslog + Wazuh ingestion). It does **not** ins
 - Optionally checks rsyslog service, listener ports, and log path (fail or warn)
 - Configures **logrotate** to keep logs for a configurable duration (daily rotation by default)
 - Adds a `<localfile>` entry to **Wazuh** so the Wazuh manager ingests the Fortinet log file
+- Adds local Wazuh rules so high/critical Fortinet events (levels 12-15) appear in alerts (configurable)
 
 ---
 
@@ -144,7 +145,7 @@ Wazuh archives rotation (separate retention):
 | `forti_wazuh_archives_logrotate_conf_path` | `/etc/logrotate.d/wazuh-archives` | Logrotate config path |
 | `forti_wazuh_archives_log_path` | `/var/ossec/logs/archives/archives.json` | Archives file to rotate |
 | `forti_wazuh_archives_logrotate_frequency` | `{{ forti_logrotate_frequency }}` | Rotation frequency |
-| `forti_wazuh_archives_log_retention_days` | `14` | Used when frequency is `daily` |
+| `forti_wazuh_archives_log_retention_days` | `7` | Used when frequency is `daily` |
 | `forti_wazuh_archives_logrotate_rotate` | derived | Number of rotated files to keep |
 
 **Note:** If your Wazuh package already ships `/etc/logrotate.d/wazuh` that manages archives, set `forti_wazuh_archives_logrotate_manage: false` to avoid duplicate logrotate entries.
@@ -215,12 +216,22 @@ Use this to re-ingest a missing time window from a rotated Fortinet log.
 | `forti_wazuh_ruleset_manage` | `null` | Auto-enable when ruleset lists are set (set `true`/`false` to override) |
 | `forti_wazuh_ruleset_rule_excludes` | `[]` | Rule IDs to exclude from evaluation |
 | `forti_wazuh_ruleset_decoder_excludes` | `[]` | Decoder names to exclude |
-| `forti_wazuh_ruleset_exclude_forti` | `true` | Auto-exclude Fortinet rules files to suppress Forti alerts |
+| `forti_wazuh_ruleset_exclude_forti` | `true` | Auto-exclude Fortinet rules files to suppress the full Forti ruleset alerts |
 | `forti_wazuh_ruleset_exclude_forti_patterns` | `["*fortigate*","*fortinet*"]` | Filename patterns used to find Fortinet rules |
 | `forti_wazuh_ruleset_dirs` | `[/var/ossec/ruleset/rules, /var/ossec/etc/rules]` | Ruleset directories to scan for auto excludes |
 | `forti_wazuh_root` | `/var/ossec` | Wazuh root used to build relative exclude paths |
+| `forti_wazuh_fortinet_alerts_manage` | `null` | Auto-enable high/critical Fortinet alerts when Fortinet rules are excluded (set `true`/`false` to override) |
+| `forti_wazuh_fortinet_alerts_levels` | `[12,13,14,15]` | Fortinet `level=` values that should generate Wazuh alerts |
+| `forti_wazuh_fortinet_alerts_match_field` | `level` | Fortinet field name to match (e.g., `level`, `severity`) |
+| `forti_wazuh_fortinet_alerts_rules_path` | `/var/ossec/etc/rules/forti-alerts.xml` | Local rules file path for Fortinet alerts |
+| `forti_wazuh_fortinet_alerts_rule_id_base` | `100300` | Starting rule ID for generated Fortinet alert rules |
 
-**Note:** By default, Fortinet rules are auto-excluded to keep Forti logs in archives only. Set `forti_wazuh_ruleset_exclude_forti: false` to keep alerts. Disabling modules and excluding rules can reduce CPU/RAM usage, but may reduce visibility. Apply conservatively.
+**Note:** By default, Fortinet rules are auto-excluded to keep noise down, but the role adds local rules that promote Fortinet `level` values 12-15 into Wazuh alerts (high/critical). Adjust `forti_wazuh_fortinet_alerts_levels` to change the range, or set `forti_wazuh_fortinet_alerts_manage: false` to disable. Set `forti_wazuh_ruleset_exclude_forti: false` to use the full Fortinet ruleset instead. Disabling modules and excluding rules can reduce CPU/RAM usage, but may reduce visibility. Apply conservatively.
+
+### Filebeat archives shipping (optional)
+
+| Variable | Default | Meaning |
+|---|---:|---|
 | `forti_wazuh_filebeat_manage` | `false` | Manage Filebeat Wazuh module archives settings |
 | `forti_wazuh_filebeat_module_path` | `/etc/filebeat/modules.d/wazuh.yml` | Path to Filebeat Wazuh module config |
 | `forti_wazuh_filebeat_archives_enabled` | `false` | Enable archives shipping in Filebeat |

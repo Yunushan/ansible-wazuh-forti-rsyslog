@@ -203,6 +203,32 @@
         or (not forti_wazuh_ruleset_manage_effective | bool)
     fail_msg: "Ruleset tuning is enabled but no rule/decoder excludes are set."
 
+- name: Determine Fortinet alert rules enablement
+  ansible.builtin.set_fact:
+    forti_wazuh_fortinet_alerts_manage_effective: >-
+      {{
+        (forti_wazuh_fortinet_alerts_manage is not none)
+        | ternary(
+            (forti_wazuh_fortinet_alerts_manage | default(false, true)) | bool,
+            (forti_wazuh_ruleset_exclude_forti | bool)
+          )
+      }}
+
+- name: Normalize Fortinet alert levels
+  ansible.builtin.set_fact:
+    forti_wazuh_fortinet_alerts_levels_effective: "{{ forti_wazuh_fortinet_alerts_levels | map('int') | list | unique }}"
+
+- name: Validate Fortinet alert levels
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_fortinet_alerts_levels_effective | length > 0
+      - (forti_wazuh_fortinet_alerts_levels_effective | select('lt', 0) | list | length) == 0
+      - (forti_wazuh_fortinet_alerts_levels_effective | select('gt', 15) | list | length) == 0
+    fail_msg: "forti_wazuh_fortinet_alerts_levels must contain values between 0 and 15."
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+
 - name: Warn when Wazuh light mode disables archives
   ansible.builtin.debug:
     msg: >-
@@ -625,6 +651,38 @@
     - wazuh_ossec_conf.stat.exists
     - forti_wazuh_ruleset_manage_effective
     - forti_wazuh_ruleset_present.rc != 0
+  notify: Restart wazuh-manager
+
+- name: Ensure Wazuh rules directory exists (Fortinet alerts)
+  ansible.builtin.file:
+    path: "{{ forti_wazuh_fortinet_alerts_rules_path | dirname }}"
+    state: directory
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+
+- name: Deploy Fortinet high/critical alert rules
+  ansible.builtin.template:
+    src: forti-alerts.xml.j2
+    dest: "{{ forti_wazuh_fortinet_alerts_rules_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+  notify: Restart wazuh-manager
+
+- name: Remove Fortinet alert rules when disabled
+  ansible.builtin.file:
+    path: "{{ forti_wazuh_fortinet_alerts_rules_path }}"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - not (forti_wazuh_fortinet_alerts_manage_effective | bool)
   notify: Restart wazuh-manager
 
 - name: Check for Wazuh module blocks to disable

@@ -91,7 +91,7 @@ forti_wazuh_archives_log_owner: wazuh
 forti_wazuh_archives_log_group: wazuh
 forti_wazuh_archives_log_mode: "0660"
 forti_wazuh_archives_logrotate_frequency: "{{ forti_logrotate_frequency }}"
-forti_wazuh_archives_log_retention_days: 14
+forti_wazuh_archives_log_retention_days: 7
 forti_wazuh_archives_logrotate_rotate: "{{ forti_wazuh_archives_log_retention_days if forti_wazuh_archives_logrotate_frequency == 'daily' else 12 }}"
 forti_wazuh_archives_logrotate_compress: "{{ forti_logrotate_compress }}"
 forti_wazuh_archives_logrotate_delaycompress: "{{ forti_logrotate_delaycompress }}"
@@ -131,7 +131,7 @@ forti_wazuh_ruleset_manage: null
 # Exclude noisy rules/decoders to reduce analysis load.
 forti_wazuh_ruleset_rule_excludes: []
 forti_wazuh_ruleset_decoder_excludes: []
-# Auto-exclude Fortinet rules to keep Forti logs out of alerts by default.
+# Auto-exclude Fortinet rules to reduce alert noise (high/critical can be added via local rules).
 forti_wazuh_ruleset_exclude_forti: true
 forti_wazuh_ruleset_exclude_forti_patterns:
   - "*fortigate*"
@@ -140,6 +140,18 @@ forti_wazuh_root: /var/ossec
 forti_wazuh_ruleset_dirs:
   - "{{ forti_wazuh_root }}/ruleset/rules"
   - "{{ forti_wazuh_root }}/etc/rules"
+
+# --- Fortinet high/critical alerts (Wazuh local rules) ---
+# If null, auto-enable when Fortinet rules are excluded.
+forti_wazuh_fortinet_alerts_manage: null
+forti_wazuh_fortinet_alerts_levels:
+  - 12
+  - 13
+  - 14
+  - 15
+forti_wazuh_fortinet_alerts_match_field: "level"
+forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
+forti_wazuh_fortinet_alerts_rule_id_base: 100300
 
 # Ensure archive settings are enabled in ossec.conf (global section).
 forti_wazuh_manage_logall: true
