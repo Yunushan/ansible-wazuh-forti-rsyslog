@@ -217,6 +217,10 @@
 - name: Normalize Fortinet alert levels
   ansible.builtin.set_fact:
     forti_wazuh_fortinet_alerts_levels_effective: "{{ forti_wazuh_fortinet_alerts_levels | map('int') | list | unique }}"
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+    - forti_wazuh_fortinet_alerts_map | length == 0
 
 - name: Validate Fortinet alert levels
   ansible.builtin.assert:
@@ -228,6 +232,21 @@
   when:
     - forti_wazuh_manage
     - forti_wazuh_fortinet_alerts_manage_effective | bool
+    - forti_wazuh_fortinet_alerts_map | length == 0
+
+- name: Validate Fortinet alert map
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_fortinet_alerts_map | length > 0
+      - (forti_wazuh_fortinet_alerts_map | selectattr('match', 'defined') | list | length) == (forti_wazuh_fortinet_alerts_map | length)
+      - (forti_wazuh_fortinet_alerts_map | selectattr('level', 'defined') | list | length) == (forti_wazuh_fortinet_alerts_map | length)
+      - (forti_wazuh_fortinet_alerts_map | map(attribute='level') | map('int') | select('lt', 0) | list | length) == 0
+      - (forti_wazuh_fortinet_alerts_map | map(attribute='level') | map('int') | select('gt', 15) | list | length) == 0
+    fail_msg: "forti_wazuh_fortinet_alerts_map must contain items with match and level (0-15)."
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+    - forti_wazuh_fortinet_alerts_map | length > 0
 
 - name: Warn when Wazuh light mode disables archives
   ansible.builtin.debug:

@@ -75,6 +75,13 @@ forti_wazuh_log_format: syslog
 # forti_wazuh_ruleset_dirs:
 #   - "{{ forti_wazuh_root }}/ruleset/rules"
 #   - "{{ forti_wazuh_root }}/etc/rules"
+# Example: match Fortinet string severities (crlevel)
+# forti_wazuh_fortinet_alerts_match_field: crlevel
+# forti_wazuh_fortinet_alerts_map:
+#   - match: high
+#     level: 12
+#   - match: critical
+#     level: 15
 
 # --- Filebeat archives shipping (optional) ---
 # forti_wazuh_filebeat_manage: true

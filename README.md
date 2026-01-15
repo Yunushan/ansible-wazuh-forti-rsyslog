@@ -222,11 +222,23 @@ Use this to re-ingest a missing time window from a rotated Fortinet log.
 | `forti_wazuh_root` | `/var/ossec` | Wazuh root used to build relative exclude paths |
 | `forti_wazuh_fortinet_alerts_manage` | `null` | Auto-enable high/critical Fortinet alerts when Fortinet rules are excluded (set `true`/`false` to override) |
 | `forti_wazuh_fortinet_alerts_levels` | `[12,13,14,15]` | Fortinet `level=` values that should generate Wazuh alerts |
+| `forti_wazuh_fortinet_alerts_map` | `[]` | Optional mapping for string severities (overrides levels list when non-empty) |
 | `forti_wazuh_fortinet_alerts_match_field` | `level` | Fortinet field name to match (e.g., `level`, `severity`) |
 | `forti_wazuh_fortinet_alerts_rules_path` | `/var/ossec/etc/rules/forti-alerts.xml` | Local rules file path for Fortinet alerts |
 | `forti_wazuh_fortinet_alerts_rule_id_base` | `100300` | Starting rule ID for generated Fortinet alert rules |
 
 **Note:** By default, Fortinet rules are auto-excluded to keep noise down, but the role adds local rules that promote Fortinet `level` values 12-15 into Wazuh alerts (high/critical). Adjust `forti_wazuh_fortinet_alerts_levels` to change the range, or set `forti_wazuh_fortinet_alerts_manage: false` to disable. Set `forti_wazuh_ruleset_exclude_forti: false` to use the full Fortinet ruleset instead. Disabling modules and excluding rules can reduce CPU/RAM usage, but may reduce visibility. Apply conservatively.
+
+Example for Fortinet logs that use `crlevel` strings:
+
+```yaml
+forti_wazuh_fortinet_alerts_match_field: crlevel
+forti_wazuh_fortinet_alerts_map:
+  - match: high
+    level: 12
+  - match: critical
+    level: 15
+```
 
 ### Filebeat archives shipping (optional)
 
