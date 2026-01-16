@@ -153,18 +153,6 @@ forti_wazuh_fortinet_alerts_level_map:
     level: 14
   - match: critical
     level: 13
-  - match: error
-    level: 10
-  - match: warning
-    level: 7
-  - match: notice
-    level: 5
-  - match: information
-    level: 3
-  - match: informational
-    level: 3
-  - match: debug
-    level: 1
 forti_wazuh_fortinet_alerts_levels:
   - 12
   - 13

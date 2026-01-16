@@ -80,7 +80,8 @@ forti_wazuh_log_format: syslog
 #   - "{{ forti_wazuh_root }}/etc/rules"
 # Fortinet alert mapping (default uses Fortinet severity level)
 forti_wazuh_fortinet_alerts_use_fortinet_level: true
-# Optional: override defaults in forti_wazuh_fortinet_alerts_level_map
+# Default mapping includes only high/critical (emergency/alert/critical).
+# Optional: include lower severities by overriding forti_wazuh_fortinet_alerts_level_map
 
 # To use Fortinet criticality (crlevel=high/critical) instead:
 # forti_wazuh_fortinet_alerts_use_fortinet_level: false
