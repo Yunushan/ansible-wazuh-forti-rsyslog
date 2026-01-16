@@ -144,6 +144,27 @@ forti_wazuh_ruleset_dirs:
 # --- Fortinet high/critical alerts (Wazuh local rules) ---
 # If null, auto-enable when Fortinet rules are excluded.
 forti_wazuh_fortinet_alerts_manage: null
+# Toggle to map Wazuh alert levels from Fortinet "level" instead of "crlevel".
+forti_wazuh_fortinet_alerts_use_fortinet_level: true
+forti_wazuh_fortinet_alerts_level_map:
+  - match: emergency
+    level: 15
+  - match: alert
+    level: 14
+  - match: critical
+    level: 13
+  - match: error
+    level: 10
+  - match: warning
+    level: 7
+  - match: notice
+    level: 5
+  - match: information
+    level: 3
+  - match: informational
+    level: 3
+  - match: debug
+    level: 1
 forti_wazuh_fortinet_alerts_levels:
   - 12
   - 13
@@ -159,6 +180,27 @@ forti_wazuh_fortinet_alerts_map:
 forti_wazuh_fortinet_alerts_match_field: "crlevel"
 forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
 forti_wazuh_fortinet_alerts_rule_id_base: 100300
+
+# --- Custom email integration (SMTP with auth) ---
+forti_wazuh_email_integration_manage: false
+forti_wazuh_email_integration_name: custom-forti-email
+# Alert levels to email (exact match list).
+forti_wazuh_email_integration_alert_levels:
+  - 12
+  - 15
+# Minimum level for integrator filtering (null = use min from list).
+forti_wazuh_email_integration_level: null
+forti_wazuh_email_integration_timeout: 10
+forti_wazuh_email_integration_retries: 0
+forti_wazuh_email_subject_prefix: "[Wazuh]"
+forti_wazuh_email_from: ""
+forti_wazuh_email_to: []
+forti_wazuh_email_smtp_server: ""
+forti_wazuh_email_smtp_port: 587
+forti_wazuh_email_smtp_user: ""
+forti_wazuh_email_smtp_password: ""
+# starttls | ssl | none
+forti_wazuh_email_smtp_protocol: "starttls"
 
 # Ensure archive settings are enabled in ossec.conf (global section).
 forti_wazuh_manage_logall: true

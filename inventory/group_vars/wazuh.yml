@@ -78,13 +78,30 @@ forti_wazuh_log_format: syslog
 # forti_wazuh_ruleset_dirs:
 #   - "{{ forti_wazuh_root }}/ruleset/rules"
 #   - "{{ forti_wazuh_root }}/etc/rules"
-# Fortinet high/critical alert mapping (default)
-forti_wazuh_fortinet_alerts_match_field: crlevel
-forti_wazuh_fortinet_alerts_map:
-  - match: high
-    level: 12
-  - match: critical
-    level: 15
+# Fortinet alert mapping (default uses Fortinet severity level)
+forti_wazuh_fortinet_alerts_use_fortinet_level: true
+# Optional: override defaults in forti_wazuh_fortinet_alerts_level_map
+
+# To use Fortinet criticality (crlevel=high/critical) instead:
+# forti_wazuh_fortinet_alerts_use_fortinet_level: false
+# forti_wazuh_fortinet_alerts_match_field: crlevel
+# forti_wazuh_fortinet_alerts_map:
+#   - match: high
+#     level: 12
+#   - match: critical
+#     level: 15
+
+# --- Email alerts (custom SMTP integration) ---
+# forti_wazuh_email_integration_manage: true
+# forti_wazuh_email_from: wazuh@example.com
+# forti_wazuh_email_to:
+#   - soc@example.com
+# forti_wazuh_email_smtp_server: smtp.example.com
+# forti_wazuh_email_smtp_port: 587
+# forti_wazuh_email_smtp_user: wazuh@example.com
+# forti_wazuh_email_smtp_password: "{{ vault_smtp_password }}"
+# forti_wazuh_email_smtp_protocol: starttls
+# forti_wazuh_email_integration_alert_levels: [12, 15]
 
 # --- Filebeat archives shipping (optional) ---
 # forti_wazuh_filebeat_manage: true

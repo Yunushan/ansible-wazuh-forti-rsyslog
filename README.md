@@ -222,13 +222,15 @@ Use this to re-ingest a missing time window from a rotated Fortinet log.
 | `forti_wazuh_ruleset_dirs` | `[/var/ossec/ruleset/rules, /var/ossec/etc/rules]` | Ruleset directories to scan for auto excludes |
 | `forti_wazuh_root` | `/var/ossec` | Wazuh root used to build relative exclude paths |
 | `forti_wazuh_fortinet_alerts_manage` | `null` | Auto-enable high/critical Fortinet alerts when Fortinet rules are excluded (set `true`/`false` to override) |
+| `forti_wazuh_fortinet_alerts_use_fortinet_level` | `true` | Use Fortinet `level` instead of `crlevel` and map to Wazuh levels |
+| `forti_wazuh_fortinet_alerts_level_map` | defined | Mapping for Fortinet `level` strings (see defaults) |
 | `forti_wazuh_fortinet_alerts_levels` | `[12,13,14,15]` | Fortinet `level=` values that should generate Wazuh alerts |
 | `forti_wazuh_fortinet_alerts_map` | `[{match: high, level: 12}, {match: critical, level: 15}]` | Mapping for string severities (overrides levels list when non-empty) |
 | `forti_wazuh_fortinet_alerts_match_field` | `crlevel` | Fortinet field name to match (e.g., `level`, `severity`) |
 | `forti_wazuh_fortinet_alerts_rules_path` | `/var/ossec/etc/rules/forti-alerts.xml` | Local rules file path for Fortinet alerts |
 | `forti_wazuh_fortinet_alerts_rule_id_base` | `100300` | Starting rule ID for generated Fortinet alert rules |
 
-**Note:** By default, Fortinet rules are auto-excluded to keep noise down, but the role adds local rules that map `crlevel=high` and `crlevel=critical` into Wazuh alerts (levels 12/15). Adjust `forti_wazuh_fortinet_alerts_map` to change the mapping, or set `forti_wazuh_fortinet_alerts_manage: false` to disable. Set `forti_wazuh_ruleset_exclude_forti: false` to use the full Fortinet ruleset instead. Disabling modules and excluding rules can reduce CPU/RAM usage, but may reduce visibility. Apply conservatively.
+**Note:** By default, Fortinet rules are auto-excluded to keep noise down, but the role adds local rules that map Fortinet `level` strings into Wazuh alerts. Set `forti_wazuh_fortinet_alerts_use_fortinet_level: false` to map `crlevel=high` and `crlevel=critical` into Wazuh levels 12/15 instead. Adjust `forti_wazuh_fortinet_alerts_map` or `forti_wazuh_fortinet_alerts_level_map` to change the mapping, or set `forti_wazuh_fortinet_alerts_manage: false` to disable. Set `forti_wazuh_ruleset_exclude_forti: false` to use the full Fortinet ruleset instead. Disabling modules and excluding rules can reduce CPU/RAM usage, but may reduce visibility. Apply conservatively.
 
 Example for Fortinet logs that use numeric `level=12-15` instead of `crlevel` strings:
 
@@ -237,6 +239,64 @@ forti_wazuh_fortinet_alerts_match_field: level
 forti_wazuh_fortinet_alerts_map: []
 forti_wazuh_fortinet_alerts_levels: [12,13,14,15]
 ```
+
+Example for Fortinet logs that use syslog severity strings (e.g., `level=notice`, `level=error`):
+
+```yaml
+forti_wazuh_fortinet_alerts_use_fortinet_level: true
+# Optional: override defaults in forti_wazuh_fortinet_alerts_level_map
+```
+
+Example for Fortinet logs where you want `crlevel=high/critical` to drive alerts instead:
+
+```yaml
+forti_wazuh_fortinet_alerts_use_fortinet_level: false
+forti_wazuh_fortinet_alerts_match_field: crlevel
+forti_wazuh_fortinet_alerts_map:
+  - match: high
+    level: 12
+  - match: critical
+    level: 15
+```
+
+### Email alerts (SMTP via custom integration)
+
+Wazuh's built-in email uses only `smtp_server` without auth. To support SMTP auth/ports/TLS, this role can install a **custom integration** that sends email via Python.
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_email_integration_manage` | `false` | Enable the custom email integration |
+| `forti_wazuh_email_integration_name` | `custom-forti-email` | Integration name (must start with `custom-`) |
+| `forti_wazuh_email_integration_alert_levels` | `[12,15]` | Exact Wazuh rule levels that send email |
+| `forti_wazuh_email_integration_level` | `null` | Minimum level filter (null = min of list) |
+| `forti_wazuh_email_integration_timeout` | `10` | Integration timeout (seconds) |
+| `forti_wazuh_email_integration_retries` | `0` | Integration retries |
+| `forti_wazuh_email_subject_prefix` | `[Wazuh]` | Email subject prefix |
+| `forti_wazuh_email_from` | `""` | From address |
+| `forti_wazuh_email_to` | `[]` | Recipient list |
+| `forti_wazuh_email_smtp_server` | `""` | SMTP server |
+| `forti_wazuh_email_smtp_port` | `587` | SMTP port |
+| `forti_wazuh_email_smtp_user` | `""` | SMTP username (optional) |
+| `forti_wazuh_email_smtp_password` | `""` | SMTP password (optional) |
+| `forti_wazuh_email_smtp_protocol` | `starttls` | `starttls`, `ssl`, or `none` |
+
+Example:
+
+```yaml
+forti_wazuh_email_integration_manage: true
+forti_wazuh_email_from: wazuh@example.com
+forti_wazuh_email_to:
+  - soc@example.com
+forti_wazuh_email_smtp_server: smtp.example.com
+forti_wazuh_email_smtp_port: 587
+forti_wazuh_email_smtp_user: wazuh@example.com
+forti_wazuh_email_smtp_password: "{{ vault_smtp_password }}"
+forti_wazuh_email_smtp_protocol: starttls
+forti_wazuh_email_integration_alert_levels: [12, 15]
+```
+
+**Note:** Email is triggered by **alerts**, not archives. Use `forti_wazuh_archives_severity_mode: keep` if you want rule levels retained in archives.
+Requires `python3` on the Wazuh manager host.
 
 ### Filebeat archives shipping (optional)
 
