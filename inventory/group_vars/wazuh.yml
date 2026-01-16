@@ -126,6 +126,15 @@ forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
 # forti_wazuh_opensearch_validate_certs: false
 # forti_wazuh_archives_pipeline_name: filebeat-7.10.2-wazuh-archives-pipeline
 
+# --- Filebeat performance tuning (optional) ---
+# forti_wazuh_filebeat_tuning_manage: true
+# forti_wazuh_filebeat_tuning_output_worker: 2
+# forti_wazuh_filebeat_tuning_output_bulk_max_size: 2048
+# forti_wazuh_filebeat_tuning_output_compression_level: 0
+# forti_wazuh_filebeat_tuning_queue_events: 4096
+# forti_wazuh_filebeat_tuning_queue_flush_min_events: 2048
+# forti_wazuh_filebeat_tuning_queue_flush_timeout: "1s"
+
 # --- Dashboards index pattern (optional) ---
 # forti_wazuh_dashboards_manage: true
 # forti_wazuh_dashboards_url: https://wazuh.example.com

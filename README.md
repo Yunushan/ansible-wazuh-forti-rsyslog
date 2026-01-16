@@ -329,7 +329,23 @@ Requires `python3` on the Wazuh manager host.
 | `forti_filebeat_service_name` | `filebeat` | Filebeat service name |
 
 **Note:** If the Wazuh Filebeat module file is missing, the role falls back to creating an input file under `inputs.d` and enables `filebeat.config.inputs` in `filebeat.yml`. If the Wazuh module is defined inline in `filebeat.yml`, the role removes the archives input file to avoid duplicate indexing. By default, `forti_wazuh_archives_clear_severity: true` drops `rule.level` from archives events; use `forti_wazuh_archives_severity_mode` to `keep` or `zero` it.  
-Wazuh’s **archives ingest pipeline** can re-create `rule.level` after Filebeat processors run. To enforce the chosen severity behavior in OpenSearch, enable `forti_wazuh_archives_pipeline_manage` and provide OpenSearch credentials.
+Wazuh's **archives ingest pipeline** can re-create `rule.level` after Filebeat processors run. To enforce the chosen severity behavior in OpenSearch, enable `forti_wazuh_archives_pipeline_manage` and provide OpenSearch credentials.
+
+### Filebeat performance tuning (optional)
+
+Use this to reduce archives lag by increasing Filebeat batching and queue size.
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_filebeat_tuning_manage` | `false` | Enable Filebeat tuning block in `filebeat.yml` |
+| `forti_wazuh_filebeat_tuning_output_worker` | `2` | Output workers for Elasticsearch |
+| `forti_wazuh_filebeat_tuning_output_bulk_max_size` | `2048` | Bulk batch size for Elasticsearch output |
+| `forti_wazuh_filebeat_tuning_output_compression_level` | `0` | Compression level (0 = off, less CPU) |
+| `forti_wazuh_filebeat_tuning_queue_events` | `4096` | In-memory queue size (events) |
+| `forti_wazuh_filebeat_tuning_queue_flush_min_events` | `2048` | Queue flush threshold |
+| `forti_wazuh_filebeat_tuning_queue_flush_timeout` | `"1s"` | Queue flush timeout |
+
+**Note:** These settings trade CPU and memory for throughput. Increase gradually and monitor Filebeat CPU/RAM.
 
 ### Dashboards index pattern (optional)
 

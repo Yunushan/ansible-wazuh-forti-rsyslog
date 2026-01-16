@@ -208,6 +208,15 @@ forti_wazuh_logall: "yes"
 forti_wazuh_manage_logall_json: true
 forti_wazuh_logall_json: "yes"
 
+# --- Filebeat performance tuning (optional) ---
+forti_wazuh_filebeat_tuning_manage: false
+forti_wazuh_filebeat_tuning_output_worker: 2
+forti_wazuh_filebeat_tuning_output_bulk_max_size: 2048
+forti_wazuh_filebeat_tuning_output_compression_level: 0
+forti_wazuh_filebeat_tuning_queue_events: 4096
+forti_wazuh_filebeat_tuning_queue_flush_min_events: 2048
+forti_wazuh_filebeat_tuning_queue_flush_timeout: "1s"
+
 # Optional: manage Filebeat Wazuh module archives shipping.
 forti_wazuh_filebeat_manage: false
 forti_wazuh_filebeat_module_path: /etc/filebeat/modules.d/wazuh.yml
