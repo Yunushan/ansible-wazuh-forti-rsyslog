@@ -260,6 +260,24 @@
     - forti_wazuh_fortinet_alerts_manage_effective | bool
     - forti_wazuh_fortinet_alerts_map_effective | length > 0
 
+- name: Validate Fortinet SSL VPN failure threshold settings
+  ansible.builtin.assert:
+    that:
+      - (forti_wazuh_ssl_vpn_fail_frequency | int) > 0
+      - (forti_wazuh_ssl_vpn_fail_timeframe | int) > 0
+      - (forti_wazuh_ssl_vpn_fail_level | int) >= 0
+      - (forti_wazuh_ssl_vpn_fail_level | int) <= 15
+      - forti_wazuh_ssl_vpn_fail_match | length > 0
+      - forti_wazuh_ssl_vpn_fail_same_field | length > 0
+    fail_msg: >-
+      Fortinet SSL VPN threshold settings are invalid.
+      Ensure frequency/timeframe are positive, level is 0-15,
+      and match/same_field are set.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+    - forti_wazuh_ssl_vpn_fail_manage | bool
+
 - name: Warn when Wazuh light mode disables archives
   ansible.builtin.debug:
     msg: >-

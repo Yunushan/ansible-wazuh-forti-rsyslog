@@ -23,4 +23,21 @@
   </rule>
 {% endfor %}
 {% endif %}
+{% if forti_wazuh_ssl_vpn_fail_manage | bool %}
+  <rule id="{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}" level="{{ forti_wazuh_ssl_vpn_fail_base_level | int }}">
+{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
+    <match>{{ match }}</match>
+{% endfor %}
+    <description>Fortinet SSL VPN login fail (suppressed)</description>
+  </rule>
+  <rule id="{{ (forti_wazuh_ssl_vpn_fail_rule_id_base | int) + 1 }}" level="{{ forti_wazuh_ssl_vpn_fail_level | int }}">
+    <if_sid>{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}</if_sid>
+    <frequency>{{ forti_wazuh_ssl_vpn_fail_frequency | int }}</frequency>
+    <timeframe>{{ forti_wazuh_ssl_vpn_fail_timeframe | int }}</timeframe>
+{% if forti_wazuh_ssl_vpn_fail_same_field | default('') | trim | length > 0 %}
+    <same_field>{{ forti_wazuh_ssl_vpn_fail_same_field }}</same_field>
+{% endif %}
+    <description>Fortinet SSL VPN login fail ({{ forti_wazuh_ssl_vpn_fail_frequency | int }}+ in {{ forti_wazuh_ssl_vpn_fail_timeframe | int }}s)</description>
+  </rule>
+{% endif %}
 </group>

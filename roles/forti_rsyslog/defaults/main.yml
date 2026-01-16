@@ -181,6 +181,18 @@ forti_wazuh_fortinet_alerts_match_field: "crlevel"
 forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
 forti_wazuh_fortinet_alerts_rule_id_base: 100300
 
+# --- Fortinet SSL VPN login failures (thresholded alert) ---
+forti_wazuh_ssl_vpn_fail_manage: false
+forti_wazuh_ssl_vpn_fail_rule_id_base: 100360
+forti_wazuh_ssl_vpn_fail_base_level: 0
+forti_wazuh_ssl_vpn_fail_level: 14
+forti_wazuh_ssl_vpn_fail_frequency: 5
+forti_wazuh_ssl_vpn_fail_timeframe: 300
+forti_wazuh_ssl_vpn_fail_same_field: "dstuser"
+forti_wazuh_ssl_vpn_fail_match:
+  - 'action=ssl-login-fail'
+  - 'logdesc="SSL VPN login fail"'
+
 # --- Custom email integration (SMTP with auth) ---
 forti_wazuh_email_integration_manage: false
 forti_wazuh_email_integration_name: custom-forti-email

@@ -259,6 +259,34 @@ forti_wazuh_fortinet_alerts_map:
     level: 15
 ```
 
+### Fortinet SSL VPN login failures (thresholded alert)
+
+Use this to suppress single SSL VPN login failures and alert only when the **same user** fails multiple times within a window.
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_ssl_vpn_fail_manage` | `false` | Enable the thresholded SSL VPN login fail rule |
+| `forti_wazuh_ssl_vpn_fail_rule_id_base` | `100360` | Starting rule ID for the SSL VPN rules |
+| `forti_wazuh_ssl_vpn_fail_base_level` | `0` | Base rule level (0 suppresses single events) |
+| `forti_wazuh_ssl_vpn_fail_level` | `14` | Alert level when threshold is met |
+| `forti_wazuh_ssl_vpn_fail_frequency` | `5` | Count of failures to trigger |
+| `forti_wazuh_ssl_vpn_fail_timeframe` | `300` | Window in seconds |
+| `forti_wazuh_ssl_vpn_fail_same_field` | `dstuser` | Field to group by (e.g., `dstuser`) |
+| `forti_wazuh_ssl_vpn_fail_match` | list | Log substrings to match SSL VPN login failures |
+
+Example:
+
+```yaml
+forti_wazuh_ssl_vpn_fail_manage: true
+forti_wazuh_ssl_vpn_fail_frequency: 5
+forti_wazuh_ssl_vpn_fail_timeframe: 300
+forti_wazuh_ssl_vpn_fail_same_field: dstuser
+forti_wazuh_ssl_vpn_fail_level: 14
+forti_wazuh_ssl_vpn_fail_match:
+  - 'action=ssl-login-fail'
+  - 'logdesc="SSL VPN login fail"'
+```
+
 ### Email alerts (SMTP via custom integration)
 
 Wazuh's built-in email uses only `smtp_server` without auth. To support SMTP auth/ports/TLS, this role can install a **custom integration** that sends email via Python.
