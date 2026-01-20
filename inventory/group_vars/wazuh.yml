@@ -32,7 +32,7 @@ forti_log_retention_days: 1
 forti_logrotate_copytruncate: false
 
 # --- Performance tuning (select mode) ---
-# forti_tuning_mode: "2"  # 1=source_filter, 2=split_traffic, 3=wazuh_light, auto=detect
+forti_tuning_mode: "full"  # 0/full=all logs, 1=source_filter, 2=split_traffic, 3=wazuh_light, auto=detect
 # forti_syslog_traffic_patterns:
 #   - "type=traffic"
 # forti_traffic_log_filename: fortigate-traffic.log
@@ -59,6 +59,10 @@ forti_wazuh_manage: true
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
 forti_wazuh_log_format: syslog
+forti_wazuh_manage_logall: true
+forti_wazuh_logall: "yes"
+forti_wazuh_manage_logall_json: true
+forti_wazuh_logall_json: "yes"
 
 # --- Wazuh manager tuning (optional) ---
 # forti_wazuh_tuning_manage: null
@@ -87,8 +91,8 @@ forti_wazuh_fortinet_alerts_map:
     level: 15
 
 # --- Filebeat archives shipping (optional) ---
-# forti_wazuh_filebeat_manage: true
-# forti_wazuh_filebeat_archives_enabled: true
+forti_wazuh_filebeat_manage: true
+forti_wazuh_filebeat_archives_enabled: true
 # forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
 # forti_wazuh_filebeat_inputs_manage: true
 # forti_wazuh_filebeat_inputs_dir: /etc/filebeat/inputs.d

@@ -155,7 +155,7 @@ Wazuh archives rotation (separate retention):
 
 | Variable | Default | Meaning |
 |---|---:|---|
-| `forti_tuning_mode` | `"2"` | `1=source_filter` (drop traffic logs), `2=split_traffic` (separate traffic file + optional Filebeat), `3=wazuh_light` (disable archives), `auto=detect` |
+| `forti_tuning_mode` | `"2"` | `0=full` (no traffic filtering), `1=source_filter` (drop traffic logs), `2=split_traffic` (separate traffic file + optional Filebeat), `3=wazuh_light` (disable archives), `auto=detect` |
 | `forti_syslog_traffic_patterns` | `["type=traffic"]` | Patterns used to match high-volume traffic logs |
 | `forti_traffic_log_filename` | `fortigate-traffic.log` | Traffic-only log file name (mode 2) |
 | `forti_traffic_log_path` | `{{ forti_log_dir }}/{{ forti_traffic_log_filename }}` | Full traffic log path (mode 2) |
@@ -166,6 +166,7 @@ Wazuh archives rotation (separate retention):
 | `forti_traffic_filebeat_restart` | `true` | Restart Filebeat after changes |
 
 **Notes:**
+- Mode 0 keeps all logs in the main Fortinet log file (no traffic filtering).
 - Mode 1 drops traffic logs at rsyslog. Wazuh never sees those events.
 - Mode 2 routes traffic logs to a separate file and (optionally) Filebeat. Wazuh sees only non-traffic logs.
 - Mode 3 sets `<logall>` and `<logall_json>` to `no`, which disables archives (alerts still work, archives index will be empty).
@@ -319,7 +320,7 @@ forti_syslog_allowed_senders:
   - "192.0.2.11"
 
 # (Optional) tune ingestion strategy (default is "2")
-# forti_tuning_mode: "2"  # 1=source_filter, 2=split_traffic, 3=wazuh_light, auto=detect
+# forti_tuning_mode: "2"  # 0=full, 1=source_filter, 2=split_traffic, 3=wazuh_light, auto=detect
 # forti_syslog_traffic_patterns:
 #   - "type=traffic"
 # forti_traffic_log_filename: fortigate-traffic.log

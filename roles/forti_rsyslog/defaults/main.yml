@@ -33,7 +33,7 @@ forti_logrotate_delaycompress: true
 forti_logrotate_copytruncate: true
 
 # --- Performance tuning (reduce Wazuh load) ---
-# Tuning mode: "1" (source_filter), "2" (split_traffic), "3" (wazuh_light), "auto" (opt-in auto detect)
+# Tuning mode: "0" (full), "1" (source_filter), "2" (split_traffic), "3" (wazuh_light), "auto" (opt-in auto detect)
 forti_tuning_mode: "2"
 
 # Patterns that identify high-volume traffic logs (modes 1 and 2).

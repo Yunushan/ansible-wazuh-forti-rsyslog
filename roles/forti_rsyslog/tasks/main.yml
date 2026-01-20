@@ -15,9 +15,9 @@
 - name: Validate tuning mode
   ansible.builtin.assert:
     that:
-      - forti_tuning_mode is none or (forti_tuning_mode | string | lower | trim) in ["1", "2", "3", "source_filter", "split_traffic", "wazuh_light", "auto"]
+      - forti_tuning_mode is none or (forti_tuning_mode | string | lower | trim) in ["0", "1", "2", "3", "full", "source_filter", "split_traffic", "wazuh_light", "auto"]
     fail_msg: >-
-      forti_tuning_mode must be one of: 1, 2, 3, source_filter, split_traffic, wazuh_light, auto.
+      forti_tuning_mode must be one of: 0, 1, 2, 3, full, source_filter, split_traffic, wazuh_light, auto.
 
 - name: Determine tuning mode input
   ansible.builtin.set_fact:
@@ -50,7 +50,8 @@
         forti_tuning_mode_auto
         if forti_tuning_auto_enabled
         else (
-          'source_filter' if forti_tuning_mode_input in ['1', 'source_filter']
+          'full' if forti_tuning_mode_input in ['0', 'full']
+          else 'source_filter' if forti_tuning_mode_input in ['1', 'source_filter']
           else 'split_traffic' if forti_tuning_mode_input in ['2', 'split_traffic']
           else 'wazuh_light' if forti_tuning_mode_input in ['3', 'wazuh_light']
           else forti_tuning_mode_input
