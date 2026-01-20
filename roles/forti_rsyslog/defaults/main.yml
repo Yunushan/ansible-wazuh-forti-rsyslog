@@ -178,8 +178,8 @@ forti_wazuh_ssl_vpn_fail_frequency: 5
 forti_wazuh_ssl_vpn_fail_timeframe: 300
 forti_wazuh_ssl_vpn_fail_same_field: "dstuser"
 forti_wazuh_ssl_vpn_fail_match:
-  - 'action=ssl-login-fail'
-  - 'logdesc="SSL VPN login fail"'
+  - 'ssl-login-fail'
+  - 'SSL VPN login fail'
 
 # --- Custom email integration (SMTP with auth) ---
 forti_wazuh_email_integration_manage: false
@@ -193,6 +193,7 @@ forti_wazuh_email_integration_level: null
 forti_wazuh_email_integration_timeout: 10
 forti_wazuh_email_integration_retries: 0
 forti_wazuh_email_subject_prefix: "[Wazuh]"
+forti_wazuh_email_timestamp_source: "log"
 forti_wazuh_email_from: ""
 forti_wazuh_email_to: []
 forti_wazuh_email_smtp_server: ""

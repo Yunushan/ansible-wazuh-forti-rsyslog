@@ -51,6 +51,18 @@ def normalize_list(value):
     return []
 
 
+def extract_log_time(alert):
+    data = alert.get("data", {})
+    date_value = data.get("date")
+    time_value = data.get("time")
+    if not date_value or not time_value:
+        return ""
+    tz_value = data.get("tz") or data.get("timezone")
+    if tz_value:
+        return f"{date_value} {time_value} {tz_value}"
+    return f"{date_value} {time_value}"
+
+
 def should_send(alert, options, debug_enabled):
     rule = alert.get("rule", {})
     level = to_int(rule.get("level", -1), -1)
@@ -75,8 +87,17 @@ def build_message(alert, options):
     subject_prefix = options.get("subject_prefix", "[Wazuh]")
     subject = f"{subject_prefix} Rule {rule.get('id', 'n/a')} lvl {rule.get('level', 'n/a')}: {rule.get('description', 'n/a')}"
 
+    timestamp_source = str(options.get("timestamp_source") or "alert").lower().strip()
+    if timestamp_source not in ("alert", "log", "both"):
+        timestamp_source = "alert"
+    log_time = extract_log_time(alert)
+    if timestamp_source == "log" and log_time:
+        timestamp_value = log_time
+    else:
+        timestamp_value = alert.get("timestamp", "n/a")
+
     lines = [
-        f"Timestamp: {alert.get('timestamp', 'n/a')}",
+        f"Timestamp: {timestamp_value}",
         f"Rule ID: {rule.get('id', 'n/a')}",
         f"Rule Level: {rule.get('level', 'n/a')}",
         f"Rule Description: {rule.get('description', 'n/a')}",
@@ -85,6 +106,8 @@ def build_message(alert, options):
         f"Location: {alert.get('location', 'n/a')}",
         f"Full log: {alert.get('full_log', 'n/a')}",
     ]
+    if timestamp_source == "both" and log_time:
+        lines.insert(1, f"Log time: {log_time}")
 
     msg = EmailMessage()
     msg["Subject"] = subject

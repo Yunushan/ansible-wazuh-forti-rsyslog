@@ -303,8 +303,8 @@ forti_wazuh_ssl_vpn_fail_timeframe: 300
 forti_wazuh_ssl_vpn_fail_same_field: dstuser
 forti_wazuh_ssl_vpn_fail_level: 14
 forti_wazuh_ssl_vpn_fail_match:
-  - 'action=ssl-login-fail'
-  - 'logdesc="SSL VPN login fail"'
+  - 'ssl-login-fail'
+  - 'SSL VPN login fail'
 ```
 
 ### Email alerts (SMTP via custom integration)
@@ -320,6 +320,7 @@ Wazuh's built-in email uses only `smtp_server` without auth. To support SMTP aut
 | `forti_wazuh_email_integration_timeout` | `10` | Integration timeout (seconds) |
 | `forti_wazuh_email_integration_retries` | `0` | Integration retries |
 | `forti_wazuh_email_subject_prefix` | `[Wazuh]` | Email subject prefix |
+| `forti_wazuh_email_timestamp_source` | `log` | Timestamp source: `alert`, `log`, or `both` |
 | `forti_wazuh_email_from` | `""` | From address |
 | `forti_wazuh_email_to` | `[]` | Recipient list |
 | `forti_wazuh_email_smtp_server` | `""` | SMTP server |
@@ -342,6 +343,8 @@ forti_wazuh_email_smtp_password: "{{ vault_smtp_password }}"
 forti_wazuh_email_smtp_protocol: starttls
 forti_wazuh_email_integration_alert_levels: [12, 15]
 ```
+
+Tip: To align email timestamps with Fortinet log time, set `forti_wazuh_email_timestamp_source: log` (or `both` to show both).
 
 **Note:** Email is triggered by **alerts**, not archives. Use `forti_wazuh_archives_severity_mode: keep` if you want rule levels retained in archives.
 Requires `python3` on the Wazuh manager host.

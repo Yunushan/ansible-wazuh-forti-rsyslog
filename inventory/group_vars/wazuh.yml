@@ -103,8 +103,8 @@ forti_wazuh_ssl_vpn_fail_timeframe: 300
 forti_wazuh_ssl_vpn_fail_same_field: dstuser
 forti_wazuh_ssl_vpn_fail_level: 14
 forti_wazuh_ssl_vpn_fail_match:
-  - 'action=ssl-login-fail'
-  - 'logdesc="SSL VPN login fail"'
+  - 'ssl-login-fail'
+  - 'SSL VPN login fail'
 
 # --- Email alerts (custom SMTP integration) ---
 # forti_wazuh_email_integration_manage: true
@@ -117,6 +117,7 @@ forti_wazuh_ssl_vpn_fail_match:
 # forti_wazuh_email_smtp_password: "{{ vault_smtp_password }}"
 # forti_wazuh_email_smtp_protocol: starttls
 # forti_wazuh_email_integration_alert_levels: [12, 15]
+# forti_wazuh_email_timestamp_source: log  # alert | log | both
 
 # --- Filebeat archives shipping (optional) ---
 forti_wazuh_filebeat_manage: true

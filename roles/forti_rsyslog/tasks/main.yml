@@ -665,6 +665,7 @@
       - (forti_wazuh_email_smtp_port | int) > 0
       - (forti_wazuh_email_smtp_port | int) < 65536
       - (forti_wazuh_email_smtp_protocol | lower | trim) in ["starttls", "tls", "ssl", "none"]
+      - (forti_wazuh_email_timestamp_source | default("alert") | lower | trim) in ["alert", "log", "both"]
       - (forti_wazuh_email_integration_name | lower | trim).startswith("custom-")
     fail_msg: >-
       Email integration requires smtp server/from/to, a valid port, and protocol (starttls/tls/ssl/none).
@@ -709,7 +710,8 @@
           "email_from": forti_wazuh_email_from,
           "email_to": forti_wazuh_email_to,
           "subject_prefix": forti_wazuh_email_subject_prefix,
-          "alert_levels": forti_wazuh_email_integration_alert_levels_effective
+          "alert_levels": forti_wazuh_email_integration_alert_levels_effective,
+          "timestamp_source": (forti_wazuh_email_timestamp_source | default("alert") | lower | trim)
         }
       }}
   when:
