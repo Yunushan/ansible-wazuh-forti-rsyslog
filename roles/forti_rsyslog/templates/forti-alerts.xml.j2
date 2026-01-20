@@ -30,6 +30,28 @@
 {% endfor %}
     <description>Fortinet SSL VPN login fail (suppressed)</description>
   </rule>
+{% if forti_wazuh_fortinet_alerts_manage_effective | bool %}
+{% set sidns = namespace(list=[]) %}
+{% if forti_wazuh_fortinet_alerts_map_effective | length > 0 %}
+{% for item in forti_wazuh_fortinet_alerts_map_effective %}
+{% set sidns.list = sidns.list + [(forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2), (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) + 1] %}
+{% endfor %}
+{% else %}
+{% for level in forti_wazuh_fortinet_alerts_levels_effective %}
+{% set sidns.list = sidns.list + [(forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2), (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) + 1] %}
+{% endfor %}
+{% endif %}
+{% if sidns.list | length > 0 %}
+  <rule id="{{ (forti_wazuh_ssl_vpn_fail_rule_id_base | int) + 2 }}" level="0">
+    <if_sid>{{ sidns.list | join(',') }}</if_sid>
+{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
+    <match>{{ match }}</match>
+{% endfor %}
+    <description>Fortinet SSL VPN login fail (suppressed from level mapping)</description>
+    <noalert/>
+  </rule>
+{% endif %}
+{% endif %}
   <rule id="{{ (forti_wazuh_ssl_vpn_fail_rule_id_base | int) + 1 }}" level="{{ forti_wazuh_ssl_vpn_fail_level | int }}">
     <if_sid>{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}</if_sid>
     <frequency>{{ forti_wazuh_ssl_vpn_fail_frequency | int }}</frequency>
