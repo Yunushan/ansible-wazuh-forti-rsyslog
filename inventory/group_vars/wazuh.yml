@@ -82,13 +82,41 @@ forti_wazuh_logall_json: "yes"
 # forti_wazuh_ruleset_dirs:
 #   - "{{ forti_wazuh_root }}/ruleset/rules"
 #   - "{{ forti_wazuh_root }}/etc/rules"
-# Fortinet high/critical alert mapping (default)
-forti_wazuh_fortinet_alerts_match_field: crlevel
-forti_wazuh_fortinet_alerts_map:
-  - match: high
-    level: 12
-  - match: critical
-    level: 15
+# Fortinet alert mapping (default uses Fortinet severity level)
+forti_wazuh_fortinet_alerts_use_fortinet_level: true
+# Default mapping includes only high/critical (emergency/alert/critical).
+# Optional: include lower severities by overriding forti_wazuh_fortinet_alerts_level_map
+
+# To use Fortinet criticality (crlevel=high/critical) instead:
+# forti_wazuh_fortinet_alerts_use_fortinet_level: false
+# forti_wazuh_fortinet_alerts_match_field: crlevel
+# forti_wazuh_fortinet_alerts_map:
+#   - match: high
+#     level: 12
+#   - match: critical
+#     level: 15
+
+# --- Fortinet SSL VPN login failures (thresholded alert) ---
+# forti_wazuh_ssl_vpn_fail_manage: true
+# forti_wazuh_ssl_vpn_fail_frequency: 5
+# forti_wazuh_ssl_vpn_fail_timeframe: 300
+# forti_wazuh_ssl_vpn_fail_same_field: dstuser
+# forti_wazuh_ssl_vpn_fail_level: 14
+# forti_wazuh_ssl_vpn_fail_match:
+#   - 'action=ssl-login-fail'
+#   - 'logdesc="SSL VPN login fail"'
+
+# --- Email alerts (custom SMTP integration) ---
+# forti_wazuh_email_integration_manage: true
+# forti_wazuh_email_from: wazuh@example.com
+# forti_wazuh_email_to:
+#   - soc@example.com
+# forti_wazuh_email_smtp_server: smtp.example.com
+# forti_wazuh_email_smtp_port: 587
+# forti_wazuh_email_smtp_user: wazuh@example.com
+# forti_wazuh_email_smtp_password: "{{ vault_smtp_password }}"
+# forti_wazuh_email_smtp_protocol: starttls
+# forti_wazuh_email_integration_alert_levels: [12, 15]
 
 # --- Filebeat archives shipping (optional) ---
 forti_wazuh_filebeat_manage: true
@@ -112,6 +140,15 @@ forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
 # forti_wazuh_opensearch_password: "{{ vault_opensearch_password }}"
 # forti_wazuh_opensearch_validate_certs: false
 # forti_wazuh_archives_pipeline_name: filebeat-7.10.2-wazuh-archives-pipeline
+
+# --- Filebeat performance tuning (optional) ---
+# forti_wazuh_filebeat_tuning_manage: true
+# forti_wazuh_filebeat_tuning_output_worker: 2
+# forti_wazuh_filebeat_tuning_output_bulk_max_size: 2048
+# forti_wazuh_filebeat_tuning_output_compression_level: 0
+# forti_wazuh_filebeat_tuning_queue_events: 4096
+# forti_wazuh_filebeat_tuning_queue_flush_min_events: 2048
+# forti_wazuh_filebeat_tuning_queue_flush_timeout: "1s"
 
 # --- Dashboards index pattern (optional) ---
 # forti_wazuh_dashboards_manage: true

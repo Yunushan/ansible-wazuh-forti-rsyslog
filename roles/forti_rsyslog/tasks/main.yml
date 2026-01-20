@@ -215,13 +215,23 @@
           )
       }}
 
+- name: Determine Fortinet alert match field/map
+  ansible.builtin.set_fact:
+    forti_wazuh_fortinet_alerts_match_field_effective: >-
+      {{ "level" if (forti_wazuh_fortinet_alerts_use_fortinet_level | bool) else forti_wazuh_fortinet_alerts_match_field }}
+    forti_wazuh_fortinet_alerts_map_effective: >-
+      {{ forti_wazuh_fortinet_alerts_level_map if (forti_wazuh_fortinet_alerts_use_fortinet_level | bool) else forti_wazuh_fortinet_alerts_map }}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+
 - name: Normalize Fortinet alert levels
   ansible.builtin.set_fact:
     forti_wazuh_fortinet_alerts_levels_effective: "{{ forti_wazuh_fortinet_alerts_levels | map('int') | list | unique }}"
   when:
     - forti_wazuh_manage
     - forti_wazuh_fortinet_alerts_manage_effective | bool
-    - forti_wazuh_fortinet_alerts_map | length == 0
+    - forti_wazuh_fortinet_alerts_map_effective | length == 0
 
 - name: Validate Fortinet alert levels
   ansible.builtin.assert:
@@ -233,21 +243,41 @@
   when:
     - forti_wazuh_manage
     - forti_wazuh_fortinet_alerts_manage_effective | bool
-    - forti_wazuh_fortinet_alerts_map | length == 0
+    - forti_wazuh_fortinet_alerts_map_effective | length == 0
 
 - name: Validate Fortinet alert map
   ansible.builtin.assert:
     that:
-      - forti_wazuh_fortinet_alerts_map | length > 0
-      - (forti_wazuh_fortinet_alerts_map | selectattr('match', 'defined') | list | length) == (forti_wazuh_fortinet_alerts_map | length)
-      - (forti_wazuh_fortinet_alerts_map | selectattr('level', 'defined') | list | length) == (forti_wazuh_fortinet_alerts_map | length)
-      - (forti_wazuh_fortinet_alerts_map | map(attribute='level') | map('int') | select('lt', 0) | list | length) == 0
-      - (forti_wazuh_fortinet_alerts_map | map(attribute='level') | map('int') | select('gt', 15) | list | length) == 0
+      - forti_wazuh_fortinet_alerts_map_effective | length > 0
+      - (forti_wazuh_fortinet_alerts_map_effective | selectattr('match', 'defined') | list | length)
+        == (forti_wazuh_fortinet_alerts_map_effective | length)
+      - (forti_wazuh_fortinet_alerts_map_effective | selectattr('level', 'defined') | list | length)
+        == (forti_wazuh_fortinet_alerts_map_effective | length)
+      - (forti_wazuh_fortinet_alerts_map_effective | map(attribute='level') | map('int') | select('lt', 0) | list | length) == 0
+      - (forti_wazuh_fortinet_alerts_map_effective | map(attribute='level') | map('int') | select('gt', 15) | list | length) == 0
     fail_msg: "forti_wazuh_fortinet_alerts_map must contain items with match and level (0-15)."
   when:
     - forti_wazuh_manage
     - forti_wazuh_fortinet_alerts_manage_effective | bool
-    - forti_wazuh_fortinet_alerts_map | length > 0
+    - forti_wazuh_fortinet_alerts_map_effective | length > 0
+
+- name: Validate Fortinet SSL VPN failure threshold settings
+  ansible.builtin.assert:
+    that:
+      - (forti_wazuh_ssl_vpn_fail_frequency | int) > 0
+      - (forti_wazuh_ssl_vpn_fail_timeframe | int) > 0
+      - (forti_wazuh_ssl_vpn_fail_level | int) >= 0
+      - (forti_wazuh_ssl_vpn_fail_level | int) <= 15
+      - forti_wazuh_ssl_vpn_fail_match | length > 0
+      - forti_wazuh_ssl_vpn_fail_same_field | length > 0
+    fail_msg: >-
+      Fortinet SSL VPN threshold settings are invalid.
+      Ensure frequency/timeframe are positive, level is 0-15,
+      and match/same_field are set.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_fortinet_alerts_manage_effective | bool
+    - forti_wazuh_ssl_vpn_fail_manage | bool
 
 - name: Warn when Wazuh light mode disables archives
   ansible.builtin.debug:
@@ -623,6 +653,135 @@
     - forti_wazuh_manage_logall_json_effective
   notify: Restart wazuh-manager
 
+- name: Validate email integration settings
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_email_integration_alert_levels | length > 0
+      - (forti_wazuh_email_integration_alert_levels | map('int') | select('lt', 0) | list | length) == 0
+      - (forti_wazuh_email_integration_alert_levels | map('int') | select('gt', 15) | list | length) == 0
+      - forti_wazuh_email_from | length > 0
+      - forti_wazuh_email_to | length > 0
+      - forti_wazuh_email_smtp_server | length > 0
+      - (forti_wazuh_email_smtp_port | int) > 0
+      - (forti_wazuh_email_smtp_port | int) < 65536
+      - (forti_wazuh_email_smtp_protocol | lower | trim) in ["starttls", "tls", "ssl", "none"]
+      - (forti_wazuh_email_integration_name | lower | trim).startswith("custom-")
+    fail_msg: >-
+      Email integration requires smtp server/from/to, a valid port, and protocol (starttls/tls/ssl/none).
+      Integration name must start with "custom-".
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+
+- name: Normalize email integration alert levels
+  ansible.builtin.set_fact:
+    forti_wazuh_email_integration_alert_levels_effective: >-
+      {{ forti_wazuh_email_integration_alert_levels | map('int') | list | unique }}
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+
+- name: Determine email integration minimum level
+  ansible.builtin.set_fact:
+    forti_wazuh_email_integration_level_effective: >-
+      {{
+        (forti_wazuh_email_integration_level is not none)
+        | ternary((forti_wazuh_email_integration_level | int),
+                  (forti_wazuh_email_integration_alert_levels_effective | min))
+      }}
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+
+- name: Build email integration options
+  ansible.builtin.set_fact:
+    forti_wazuh_email_integration_options: >-
+      {{
+        {
+          "smtp_server": forti_wazuh_email_smtp_server,
+          "smtp_port": (forti_wazuh_email_smtp_port | int),
+          "smtp_user": forti_wazuh_email_smtp_user,
+          "smtp_password": forti_wazuh_email_smtp_password,
+          "smtp_protocol": (forti_wazuh_email_smtp_protocol | lower | trim),
+          "email_from": forti_wazuh_email_from,
+          "email_to": forti_wazuh_email_to,
+          "subject_prefix": forti_wazuh_email_subject_prefix,
+          "alert_levels": forti_wazuh_email_integration_alert_levels_effective
+        }
+      }}
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+
+- name: Ensure Wazuh integrations directory exists (email integration)
+  ansible.builtin.file:
+    path: "{{ forti_wazuh_root }}/integrations"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+
+- name: Deploy custom email integration script
+  ansible.builtin.template:
+    src: forti-email-integration.py.j2
+    dest: "{{ forti_wazuh_root }}/integrations/{{ forti_wazuh_email_integration_name }}"
+    owner: root
+    group: root
+    mode: "0750"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+  notify: Restart wazuh-manager
+
+- name: Configure email integration in Wazuh (ossec.conf)
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI EMAIL INTEGRATION -->"
+    insertbefore: "{{ forti_wazuh_insert_before_regex }}"
+    block: |2
+      <integration>
+        <name>{{ forti_wazuh_email_integration_name }}</name>
+        <level>{{ forti_wazuh_email_integration_level_effective }}</level>
+        <alert_format>json</alert_format>
+        <options>{{ forti_wazuh_email_integration_options | to_json }}</options>
+        <timeout>{{ forti_wazuh_email_integration_timeout }}</timeout>
+        <retries>{{ forti_wazuh_email_integration_retries }}</retries>
+      </integration>
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_email_integration_manage | bool
+  notify: Restart wazuh-manager
+
+- name: Remove email integration block when disabled
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_ossec_conf_path }}"
+    marker: "<!-- {mark} ANSIBLE MANAGED FORTI EMAIL INTEGRATION -->"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - not (forti_wazuh_email_integration_manage | bool)
+  notify: Restart wazuh-manager
+
+- name: Remove custom email integration script when disabled
+  ansible.builtin.file:
+    path: "{{ forti_wazuh_root }}/integrations/{{ forti_wazuh_email_integration_name }}"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - not (forti_wazuh_email_integration_manage | bool)
+
 - name: Check for Wazuh ruleset block
   ansible.builtin.command: "grep -Eq '^\\s*<ruleset>' {{ forti_wazuh_ossec_conf_path }}"
   register: forti_wazuh_ruleset_present
@@ -775,6 +934,84 @@
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
+
+- name: Check for output.elasticsearch block in Filebeat config
+  ansible.builtin.command: "grep -Eq '^output\\.elasticsearch:\\s*$' {{ forti_wazuh_filebeat_config_path }}"
+  register: forti_wazuh_filebeat_output_block
+  changed_when: false
+  failed_when: false
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_config.stat.exists
+
+- name: Remove Filebeat output tuning block when disabled
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI FILEBEAT OUTPUT TUNING"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_config.stat.exists
+    - not (forti_wazuh_filebeat_tuning_manage | bool)
+
+- name: Remove Filebeat queue tuning block when disabled
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI FILEBEAT QUEUE TUNING"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_config.stat.exists
+    - not (forti_wazuh_filebeat_tuning_manage | bool)
+
+- name: Ensure Filebeat output tuning block is configured
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI FILEBEAT OUTPUT TUNING"
+    insertafter: '^output\.elasticsearch:\s*$'
+    block: |2
+      worker: {{ forti_wazuh_filebeat_tuning_output_worker | int }}
+      bulk_max_size: {{ forti_wazuh_filebeat_tuning_output_bulk_max_size | int }}
+      compression_level: {{ forti_wazuh_filebeat_tuning_output_compression_level | int }}
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_tuning_manage | bool
+    - forti_wazuh_filebeat_config.stat.exists
+    - (forti_wazuh_filebeat_output_block | default({'rc': 1})).rc == 0
+  notify: Restart filebeat
+
+- name: Warn if output.elasticsearch block is missing
+  ansible.builtin.debug:
+    msg: >-
+      output.elasticsearch block not found in {{ forti_wazuh_filebeat_config_path }}.
+      Skipping Filebeat output tuning settings.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_tuning_manage | bool
+    - forti_wazuh_filebeat_config.stat.exists
+    - (forti_wazuh_filebeat_output_block | default({'rc': 1})).rc != 0
+
+- name: Ensure Filebeat queue tuning block is configured
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI FILEBEAT QUEUE TUNING"
+    insertbefore: '^filebeat\.modules:'
+    block: |
+      queue.mem:
+        events: {{ forti_wazuh_filebeat_tuning_queue_events | int }}
+        flush.min_events: {{ forti_wazuh_filebeat_tuning_queue_flush_min_events | int }}
+        flush.timeout: "{{ forti_wazuh_filebeat_tuning_queue_flush_timeout }}"
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_tuning_manage | bool
+    - forti_wazuh_filebeat_config.stat.exists
+  notify: Restart filebeat
 
 - name: Build Filebeat archives processors
   ansible.builtin.set_fact:

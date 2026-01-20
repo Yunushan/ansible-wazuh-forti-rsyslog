@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+import json
+import os
+import smtplib
+import sys
+from email.message import EmailMessage
+
+# Argument indices (see Wazuh integrator.c)
+ALERT_INDEX = 1
+DEBUG_INDEX = 4
+OPTIONS_INDEX = 5
+TIMEOUT_INDEX = 6
+
+PWD = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+LOG_FILE = os.path.join(PWD, "logs", "integrations.log")
+
+
+def log_debug(enabled, message):
+    if not enabled:
+        return
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as handle:
+            handle.write(f"{message}\n")
+    except Exception:
+        pass
+
+
+def load_json(path, debug_enabled):
+    if not path:
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception as exc:
+        log_debug(debug_enabled, f"Failed to read JSON from {path}: {exc}")
+        return {}
+
+
+def to_int(value, default):
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def normalize_list(value):
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value:
+        return [value]
+    return []
+
+
+def should_send(alert, options, debug_enabled):
+    rule = alert.get("rule", {})
+    level = to_int(rule.get("level", -1), -1)
+    if level < 0:
+        log_debug(debug_enabled, "Alert has no rule level; skipping")
+        return False
+
+    allowed_levels = options.get("alert_levels", [])
+    allowed_levels = [to_int(item, -1) for item in normalize_list(allowed_levels)]
+    allowed_levels = [item for item in allowed_levels if item >= 0]
+    if allowed_levels and level not in allowed_levels:
+        return False
+
+    return True
+
+
+def build_message(alert, options):
+    rule = alert.get("rule", {})
+    agent = alert.get("agent", {})
+    manager = alert.get("manager", {})
+
+    subject_prefix = options.get("subject_prefix", "[Wazuh]")
+    subject = f"{subject_prefix} Rule {rule.get('id', 'n/a')} lvl {rule.get('level', 'n/a')}: {rule.get('description', 'n/a')}"
+
+    lines = [
+        f"Timestamp: {alert.get('timestamp', 'n/a')}",
+        f"Rule ID: {rule.get('id', 'n/a')}",
+        f"Rule Level: {rule.get('level', 'n/a')}",
+        f"Rule Description: {rule.get('description', 'n/a')}",
+        f"Agent: {agent.get('name', 'n/a')} ({agent.get('id', 'n/a')})",
+        f"Manager: {manager.get('name', 'n/a')}",
+        f"Location: {alert.get('location', 'n/a')}",
+        f"Full log: {alert.get('full_log', 'n/a')}",
+    ]
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = options.get("email_from", "")
+    msg["To"] = ", ".join(normalize_list(options.get("email_to", [])))
+    msg.set_content("\n".join(lines))
+    return msg
+
+
+def send_email(message, options, timeout, debug_enabled):
+    smtp_server = options.get("smtp_server", "")
+    smtp_port = to_int(options.get("smtp_port", 587), 587)
+    smtp_user = options.get("smtp_user", "")
+    smtp_password = options.get("smtp_password", "")
+    smtp_protocol = (options.get("smtp_protocol", "starttls") or "starttls").lower()
+
+    if smtp_protocol == "ssl":
+        server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=timeout)
+    else:
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=timeout)
+
+    try:
+        server.ehlo()
+        if smtp_protocol in ("starttls", "tls"):
+            server.starttls()
+            server.ehlo()
+        if smtp_user:
+            server.login(smtp_user, smtp_password)
+        server.send_message(message)
+    finally:
+        try:
+            server.quit()
+        except Exception as exc:
+            log_debug(debug_enabled, f"Failed to close SMTP connection: {exc}")
+
+
+def main(args):
+    debug_enabled = len(args) > DEBUG_INDEX and args[DEBUG_INDEX] == "debug"
+    alert_path = args[ALERT_INDEX] if len(args) > ALERT_INDEX else ""
+    options_path = args[OPTIONS_INDEX] if len(args) > OPTIONS_INDEX else ""
+    timeout = to_int(args[TIMEOUT_INDEX], 10) if len(args) > TIMEOUT_INDEX else 10
+
+    options = load_json(options_path, debug_enabled)
+    alert = load_json(alert_path, debug_enabled)
+
+    if not alert or not options:
+        log_debug(debug_enabled, "Missing alert or options; skipping")
+        return
+
+    if not should_send(alert, options, debug_enabled):
+        return
+
+    message = build_message(alert, options)
+    if not message["From"] or not message["To"]:
+        log_debug(debug_enabled, "Missing email_from or email_to; skipping")
+        return
+
+    send_email(message, options, timeout, debug_enabled)
+
+
+if __name__ == "__main__":
+    main(sys.argv)
