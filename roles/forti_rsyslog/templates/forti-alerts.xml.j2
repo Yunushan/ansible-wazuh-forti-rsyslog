@@ -1,23 +1,21 @@
 <!-- Ansible managed: Fortinet high/critical alerts -->
 <group name="fortinet,">
-{% set forti_wazuh_ssl_vpn_suppress_map = (forti_wazuh_ssl_vpn_fail_manage | bool) and ((forti_wazuh_ssl_vpn_fail_match | default([])) | length > 0) %}
+{% set forti_wazuh_ssl_vpn_fail_match_list = forti_wazuh_ssl_vpn_fail_match | default([]) %}
+{% set forti_wazuh_ssl_vpn_suppress_map = (forti_wazuh_ssl_vpn_fail_manage | bool) and (forti_wazuh_ssl_vpn_fail_match_list | length > 0) %}
+{% set forti_wazuh_ssl_vpn_fail_match_regex = forti_wazuh_ssl_vpn_fail_match_list | join('|') %}
 {% if forti_wazuh_fortinet_alerts_map_effective | length > 0 %}
 {% for item in forti_wazuh_fortinet_alerts_map_effective %}
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) }}" level="{{ item.level | int }}">
     <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ item.match | string }}</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
-{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
-    <not_match>{{ match }}</not_match>
-{% endfor %}
+    <match negate="yes">{{ forti_wazuh_ssl_vpn_fail_match_regex }}</match>
 {% endif %}
     <description>Fortinet alert level {{ item.level | int }}</description>
   </rule>
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) + 1 }}" level="{{ item.level | int }}">
     <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ item.match | string }}"</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
-{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
-    <not_match>{{ match }}</not_match>
-{% endfor %}
+    <match negate="yes">{{ forti_wazuh_ssl_vpn_fail_match_regex }}</match>
 {% endif %}
     <description>Fortinet alert level {{ item.level | int }}</description>
   </rule>
@@ -27,18 +25,14 @@
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) }}" level="{{ level | int }}">
     <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ level }}</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
-{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
-    <not_match>{{ match }}</not_match>
-{% endfor %}
+    <match negate="yes">{{ forti_wazuh_ssl_vpn_fail_match_regex }}</match>
 {% endif %}
     <description>Fortinet alert level {{ level | int }}</description>
   </rule>
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) + 1 }}" level="{{ level | int }}">
     <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ level }}"</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
-{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
-    <not_match>{{ match }}</not_match>
-{% endfor %}
+    <match negate="yes">{{ forti_wazuh_ssl_vpn_fail_match_regex }}</match>
 {% endif %}
     <description>Fortinet alert level {{ level | int }}</description>
   </rule>
@@ -46,9 +40,7 @@
 {% endif %}
 {% if forti_wazuh_ssl_vpn_fail_manage | bool %}
   <rule id="{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}" level="{{ forti_wazuh_ssl_vpn_fail_base_level | int }}">
-{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
-    <match>{{ match }}</match>
-{% endfor %}
+    <match>{{ forti_wazuh_ssl_vpn_fail_match_regex }}</match>
     <description>Fortinet SSL VPN login fail (suppressed)</description>
   </rule>
 {% if forti_wazuh_fortinet_alerts_manage_effective | bool %}
@@ -63,13 +55,10 @@
 {% endfor %}
 {% endif %}
 {% if sidns.list | length > 0 %}
-  <rule id="{{ (forti_wazuh_ssl_vpn_fail_rule_id_base | int) + 2 }}" level="0">
+  <rule id="{{ (forti_wazuh_ssl_vpn_fail_rule_id_base | int) + 2 }}" level="0" noalert="1">
     <if_sid>{{ sidns.list | join(',') }}</if_sid>
-{% for match in forti_wazuh_ssl_vpn_fail_match | default([]) %}
-    <match>{{ match }}</match>
-{% endfor %}
+    <match>{{ forti_wazuh_ssl_vpn_fail_match_regex }}</match>
     <description>Fortinet SSL VPN login fail (suppressed from level mapping)</description>
-    <noalert/>
   </rule>
 {% endif %}
 {% endif %}
