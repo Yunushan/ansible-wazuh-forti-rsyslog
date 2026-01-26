@@ -96,6 +96,7 @@ forti_wazuh_archives_logrotate_rotate: "{{ forti_wazuh_archives_log_retention_da
 forti_wazuh_archives_logrotate_compress: "{{ forti_logrotate_compress }}"
 forti_wazuh_archives_logrotate_delaycompress: "{{ forti_logrotate_delaycompress }}"
 forti_wazuh_archives_logrotate_copytruncate: "{{ forti_logrotate_copytruncate }}"
+forti_wazuh_archives_logrotate_allowhardlink: false
 
 # --- Config file locations ---
 forti_rsyslog_conf_path: /etc/rsyslog.d/10-fortinet.conf

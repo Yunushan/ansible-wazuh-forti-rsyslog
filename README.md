@@ -148,6 +148,7 @@ Wazuh archives rotation (separate retention):
 | `forti_wazuh_archives_logrotate_frequency` | `{{ forti_logrotate_frequency }}` | Rotation frequency |
 | `forti_wazuh_archives_log_retention_days` | `7` | Used when frequency is `daily` |
 | `forti_wazuh_archives_logrotate_rotate` | derived | Number of rotated files to keep |
+| `forti_wazuh_archives_logrotate_allowhardlink` | `false` | Allow logrotate to handle hard-linked archives (needed when Wazuh creates hard links) |
 
 **Note:** If your Wazuh package already ships `/etc/logrotate.d/wazuh` that manages archives, set `forti_wazuh_archives_logrotate_manage: false` to avoid duplicate logrotate entries.
 

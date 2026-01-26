@@ -55,6 +55,8 @@ forti_tuning_mode: "full"  # 0/full=all logs, 1=source_filter, 2=split_traffic, 
 # forti_wazuh_archives_log_retention_days: 7
 # Use copytruncate for archives so logrotate can handle Wazuh hard-linked files.
 forti_wazuh_archives_logrotate_copytruncate: true
+# Allow rotation even when Wazuh creates hard links under /var/ossec/logs/archives/YYYY/Mon.
+forti_wazuh_archives_logrotate_allowhardlink: true
 
 # --- Wazuh integration ---
 forti_wazuh_manage: true

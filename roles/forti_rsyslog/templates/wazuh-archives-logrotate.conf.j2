@@ -6,6 +6,9 @@
     notifempty
     dateext
     dateformat -%Y%m%d
+{% if forti_wazuh_archives_logrotate_allowhardlink | default(false) %}
+    allowhardlink
+{% endif %}
 {% if forti_wazuh_archives_logrotate_compress %}
     compress
 {% endif %}
