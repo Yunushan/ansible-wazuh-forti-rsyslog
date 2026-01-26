@@ -53,6 +53,8 @@ forti_tuning_mode: "full"  # 0/full=all logs, 1=source_filter, 2=split_traffic, 
 # forti_wazuh_archives_logrotate_conf_path: /etc/logrotate.d/wazuh-archives
 # forti_wazuh_archives_log_path: /var/ossec/logs/archives/archives.json
 # forti_wazuh_archives_log_retention_days: 7
+# Use copytruncate for archives so logrotate can handle Wazuh hard-linked files.
+forti_wazuh_archives_logrotate_copytruncate: true
 
 # --- Wazuh integration ---
 forti_wazuh_manage: true
@@ -84,6 +86,8 @@ forti_wazuh_logall_json: "yes"
 #   - "{{ forti_wazuh_root }}/etc/rules"
 # Fortinet alert mapping (default uses Fortinet severity level)
 forti_wazuh_fortinet_alerts_use_fortinet_level: true
+# Scope Fortinet alert rules to the Fortinet decoder to avoid false positives.
+forti_wazuh_fortinet_alerts_decoded_as: fortigate-firewall-v5
 # Default mapping includes only high/critical (emergency/alert/critical).
 # Optional: include lower severities by overriding forti_wazuh_fortinet_alerts_level_map
 

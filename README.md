@@ -228,6 +228,7 @@ Use this to re-ingest a missing time window from a rotated Fortinet log.
 | `forti_wazuh_fortinet_alerts_levels` | `[12,13,14,15]` | Fortinet `level=` values that should generate Wazuh alerts |
 | `forti_wazuh_fortinet_alerts_map` | `[{match: high, level: 12}, {match: critical, level: 15}]` | Mapping for string severities (overrides levels list when non-empty) |
 | `forti_wazuh_fortinet_alerts_match_field` | `crlevel` | Fortinet field name to match (e.g., `level`, `severity`) |
+| `forti_wazuh_fortinet_alerts_decoded_as` | `""` | Optional decoder name to scope Fortinet alert rules (e.g., `fortigate-firewall-v5`) |
 | `forti_wazuh_fortinet_alerts_rules_path` | `/var/ossec/etc/rules/forti-alerts.xml` | Local rules file path for Fortinet alerts |
 | `forti_wazuh_fortinet_alerts_rule_id_base` | `100300` | Starting rule ID for generated Fortinet alert rules |
 

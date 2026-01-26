@@ -166,6 +166,7 @@ forti_wazuh_fortinet_alerts_map:
   - match: critical
     level: 15
 forti_wazuh_fortinet_alerts_match_field: "crlevel"
+forti_wazuh_fortinet_alerts_decoded_as: ""
 forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
 forti_wazuh_fortinet_alerts_rule_id_base: 100300
 
