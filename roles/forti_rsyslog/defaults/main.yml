@@ -172,7 +172,7 @@ forti_wazuh_fortinet_alerts_rule_id_base: 100300
 # --- Fortinet SSL VPN login failures (thresholded alert) ---
 forti_wazuh_ssl_vpn_fail_manage: false
 forti_wazuh_ssl_vpn_fail_rule_id_base: 100360
-forti_wazuh_ssl_vpn_fail_base_level: 0
+forti_wazuh_ssl_vpn_fail_base_level: 1
 forti_wazuh_ssl_vpn_fail_level: 14
 forti_wazuh_ssl_vpn_fail_frequency: 5
 forti_wazuh_ssl_vpn_fail_timeframe: 300

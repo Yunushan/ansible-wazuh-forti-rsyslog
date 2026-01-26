@@ -2,6 +2,7 @@
 <group name="fortinet,">
 {% set forti_wazuh_ssl_vpn_fail_match_list = forti_wazuh_ssl_vpn_fail_match | default([]) %}
 {% set forti_wazuh_ssl_vpn_suppress_map = (forti_wazuh_ssl_vpn_fail_manage | bool) and (forti_wazuh_ssl_vpn_fail_match_list | length > 0) %}
+{% set forti_wazuh_ssl_vpn_fail_base_level_effective = [forti_wazuh_ssl_vpn_fail_base_level | int, 1] | max %}
 {% if forti_wazuh_fortinet_alerts_map_effective | length > 0 %}
 {% for item in forti_wazuh_fortinet_alerts_map_effective %}
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) }}" level="{{ item.level | int }}">
@@ -46,7 +47,7 @@
 {% endfor %}
 {% endif %}
 {% if forti_wazuh_ssl_vpn_fail_manage | bool %}
-  <rule id="{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}" level="{{ forti_wazuh_ssl_vpn_fail_base_level | int }}">
+  <rule id="{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}" level="{{ forti_wazuh_ssl_vpn_fail_base_level_effective | int }}" noalert="1">
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match>{{ match }}</match>
 {% endfor %}
@@ -74,7 +75,7 @@
 {% endif %}
 {% endif %}
   <rule id="{{ (forti_wazuh_ssl_vpn_fail_rule_id_base | int) + 1 }}" level="{{ forti_wazuh_ssl_vpn_fail_level | int }}" frequency="{{ forti_wazuh_ssl_vpn_fail_frequency | int }}" timeframe="{{ forti_wazuh_ssl_vpn_fail_timeframe | int }}">
-    <if_sid>{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}</if_sid>
+    <if_matched_sid>{{ forti_wazuh_ssl_vpn_fail_rule_id_base | int }}</if_matched_sid>
 {% if forti_wazuh_ssl_vpn_fail_same_field | default('') | trim | length > 0 %}
     <same_field>{{ forti_wazuh_ssl_vpn_fail_same_field }}</same_field>
 {% endif %}

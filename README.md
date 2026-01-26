@@ -287,7 +287,7 @@ Use this to suppress single SSL VPN login failures and alert only when the **sam
 |---|---:|---|
 | `forti_wazuh_ssl_vpn_fail_manage` | `false` | Enable the thresholded SSL VPN login fail rule |
 | `forti_wazuh_ssl_vpn_fail_rule_id_base` | `100360` | Starting rule ID for the SSL VPN rules |
-| `forti_wazuh_ssl_vpn_fail_base_level` | `0` | Base rule level (0 suppresses single events) |
+| `forti_wazuh_ssl_vpn_fail_base_level` | `1` | Base rule level (suppressed via `noalert`, must be >=1 for `if_matched_sid`) |
 | `forti_wazuh_ssl_vpn_fail_level` | `14` | Alert level when threshold is met |
 | `forti_wazuh_ssl_vpn_fail_frequency` | `5` | Count of failures to trigger |
 | `forti_wazuh_ssl_vpn_fail_timeframe` | `300` | Window in seconds |
