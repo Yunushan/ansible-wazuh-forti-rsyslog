@@ -145,15 +145,18 @@ forti_wazuh_ruleset_dirs:
 # --- Fortinet high/critical alerts (Wazuh local rules) ---
 # If null, auto-enable when Fortinet rules are excluded.
 forti_wazuh_fortinet_alerts_manage: null
-# Toggle to map Wazuh alert levels from Fortinet "level" instead of "crlevel".
-forti_wazuh_fortinet_alerts_use_fortinet_level: true
+# Map Wazuh alert levels from Fortinet "crlevel" (low/medium/high/critical).
+# Set true to use Fortinet "level" (notice/warning/error/critical/alert/emergency) instead.
+forti_wazuh_fortinet_alerts_use_fortinet_level: false
 forti_wazuh_fortinet_alerts_level_map:
-  - match: emergency
-    level: 15
-  - match: alert
-    level: 14
+  - match: low
+    level: 3
+  - match: medium
+    level: 8
+  - match: high
+    level: 12
   - match: critical
-    level: 13
+    level: 15
 forti_wazuh_fortinet_alerts_levels:
   - 12
   - 13
@@ -161,11 +164,7 @@ forti_wazuh_fortinet_alerts_levels:
   - 15
 # Mapping for string severities (overrides levels list when non-empty).
 # Clear this list to use numeric levels instead.
-forti_wazuh_fortinet_alerts_map:
-  - match: high
-    level: 12
-  - match: critical
-    level: 15
+forti_wazuh_fortinet_alerts_map: []
 forti_wazuh_fortinet_alerts_match_field: "crlevel"
 forti_wazuh_fortinet_alerts_decoded_as: ""
 forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
