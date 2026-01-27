@@ -974,10 +974,20 @@
     path: "{{ forti_wazuh_filebeat_config_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI FILEBEAT OUTPUT TUNING"
     insertafter: '^output\.elasticsearch:\s*$'
-    block: |2
-      worker: {{ forti_wazuh_filebeat_tuning_output_worker | int }}
-      bulk_max_size: {{ forti_wazuh_filebeat_tuning_output_bulk_max_size | int }}
-      compression_level: {{ forti_wazuh_filebeat_tuning_output_compression_level | int }}
+    block: |
+      {{
+        (
+          'worker: %d\n' ~
+          'bulk_max_size: %d\n' ~
+          'compression_level: %d'
+        )
+        | format(
+            forti_wazuh_filebeat_tuning_output_worker | int,
+            forti_wazuh_filebeat_tuning_output_bulk_max_size | int,
+            forti_wazuh_filebeat_tuning_output_compression_level | int
+          )
+        | indent(2, true)
+      }}
   when:
     - forti_wazuh_manage
     - forti_wazuh_filebeat_manage
