@@ -140,7 +140,11 @@ forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
 # forti_wazuh_archives_include_severity: null # legacy override
 # forti_wazuh_filebeat_archives_paths:
 #   - /var/ossec/logs/archives/archives.json
-# forti_wazuh_archives_pipeline_manage: false
+# --- Archives ingest pipeline fix (optional) ---
+# Enable this to patch the Wazuh archives ingest pipeline when OpenSearch rejects events
+# due to mapping conflicts (e.g., data.service being a string).
+# forti_wazuh_archives_pipeline_manage: true
+# forti_wazuh_archives_pipeline_fix_data_service: true
 # forti_wazuh_opensearch_url: https://127.0.0.1:9200
 # forti_wazuh_opensearch_auth_method: basic
 # forti_wazuh_opensearch_username: admin

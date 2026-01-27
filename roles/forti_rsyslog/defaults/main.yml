@@ -245,6 +245,8 @@ forti_wazuh_opensearch_validate_certs: true
 # If empty, the role will try to auto-detect the archives pipeline by name match.
 forti_wazuh_archives_pipeline_name: ""
 forti_wazuh_archives_pipeline_match: "wazuh-archives"
+# Fix mapping conflicts where data.service is a string but index expects an object.
+forti_wazuh_archives_pipeline_fix_data_service: false
 forti_wazuh_filebeat_config_path: /etc/filebeat/filebeat.yml
 forti_wazuh_filebeat_inputs_manage: true
 forti_wazuh_filebeat_inputs_dir: /etc/filebeat/inputs.d
