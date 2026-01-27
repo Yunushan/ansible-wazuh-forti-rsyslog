@@ -20,6 +20,10 @@
     su {{ forti_log_owner }} {{ forti_log_group }}
     sharedscripts
     postrotate
+{% if forti_logrotate_copytruncate %}
         /bin/systemctl reload {{ rsyslog_service_name }} >/dev/null 2>&1 || true
+{% else %}
+        /bin/systemctl restart {{ rsyslog_service_name }} >/dev/null 2>&1 || true
+{% endif %}
     endscript
 }
