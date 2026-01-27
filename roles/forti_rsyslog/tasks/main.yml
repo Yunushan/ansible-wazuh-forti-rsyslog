@@ -983,7 +983,7 @@
     - forti_wazuh_filebeat_manage
     - forti_wazuh_filebeat_tuning_manage | bool
     - forti_wazuh_filebeat_config.stat.exists
-    - (forti_wazuh_filebeat_output_block | default({'rc': 1})).rc == 0
+    - (forti_wazuh_filebeat_output_block.rc | default(1)) == 0
   notify: Restart filebeat
 
 - name: Warn if output.elasticsearch block is missing
@@ -996,7 +996,7 @@
     - forti_wazuh_filebeat_manage
     - forti_wazuh_filebeat_tuning_manage | bool
     - forti_wazuh_filebeat_config.stat.exists
-    - (forti_wazuh_filebeat_output_block | default({'rc': 1})).rc != 0
+    - (forti_wazuh_filebeat_output_block.rc | default(1)) != 0
 
 - name: Ensure Filebeat queue tuning block is configured
   ansible.builtin.blockinfile:
