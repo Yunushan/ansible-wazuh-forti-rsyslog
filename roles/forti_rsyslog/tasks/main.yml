@@ -1452,6 +1452,9 @@
       <localfile>
         <location>{{ forti_log_path }}</location>
         <log_format>{{ forti_wazuh_log_format }}</log_format>
+      {% if forti_wazuh_localfile_only_future_events | default(false) | bool %}
+        <only_future_events>yes</only_future_events>
+      {% endif %}
       </localfile>
   when:
     - forti_wazuh_manage
