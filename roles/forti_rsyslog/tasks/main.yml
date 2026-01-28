@@ -1443,6 +1443,17 @@
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
 
+- name: Warn if only_future_events is requested but not forced
+  ansible.builtin.debug:
+    msg: >-
+      forti_wazuh_localfile_only_future_events is true, but
+      forti_wazuh_localfile_only_future_events_force is false.
+      Skipping <only_future_events> because it is not supported in Wazuh 4.14.x manager.
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_localfile_only_future_events | bool
+    - not (forti_wazuh_localfile_only_future_events_force | bool)
+
 - name: Add Fortinet localfile entry to Wazuh (ossec.conf)
   ansible.builtin.blockinfile:
     path: "{{ forti_wazuh_ossec_conf_path }}"
@@ -1452,7 +1463,7 @@
       <localfile>
         <location>{{ forti_log_path }}</location>
         <log_format>{{ forti_wazuh_log_format }}</log_format>
-      {% if forti_wazuh_localfile_only_future_events | default(false) | bool %}
+      {% if (forti_wazuh_localfile_only_future_events | default(false) | bool) and (forti_wazuh_localfile_only_future_events_force | default(false) | bool) %}
         <only_future_events>yes</only_future_events>
       {% endif %}
       </localfile>

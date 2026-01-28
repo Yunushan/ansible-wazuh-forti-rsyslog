@@ -137,7 +137,10 @@ forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
 forti_wazuh_log_format: syslog
 # Only ingest new Fortinet log lines (avoid re-reading huge existing files).
-forti_wazuh_localfile_only_future_events: true
+# NOTE: Wazuh 4.14.x does not accept <only_future_events> in localfile on the manager.
+forti_wazuh_localfile_only_future_events: false
+# Set to true only if your Wazuh version supports <only_future_events> in localfile.
+forti_wazuh_localfile_only_future_events_force: false
 
 # --- Wazuh manager tuning (optional) ---
 # If null, tuning auto-enables when any tuning list is non-empty.
