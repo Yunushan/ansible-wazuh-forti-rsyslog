@@ -969,6 +969,17 @@
     - forti_wazuh_filebeat_config.stat.exists
     - not (forti_wazuh_filebeat_tuning_manage | bool)
 
+- name: Reset Filebeat output tuning block (force replace)
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_filebeat_config_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI FILEBEAT OUTPUT TUNING"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - forti_wazuh_filebeat_manage
+    - forti_wazuh_filebeat_tuning_manage | bool
+    - forti_wazuh_filebeat_config.stat.exists
+
 - name: Ensure Filebeat output tuning block is configured
   ansible.builtin.blockinfile:
     path: "{{ forti_wazuh_filebeat_config_path }}"
