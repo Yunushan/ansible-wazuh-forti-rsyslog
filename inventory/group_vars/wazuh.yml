@@ -93,7 +93,7 @@ forti_wazuh_logall_json: "yes"
 # Fortinet alert mapping (only high/critical via Fortinet "crlevel")
 forti_wazuh_fortinet_alerts_use_fortinet_level: false
 forti_wazuh_fortinet_alerts_match_field: crlevel
-forti_wazuh_fortinet_alerts_level_map:
+forti_wazuh_fortinet_alerts_map:
   - match: high
     level: 12
   - match: critical
