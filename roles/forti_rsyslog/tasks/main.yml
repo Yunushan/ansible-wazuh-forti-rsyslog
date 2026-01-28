@@ -680,7 +680,9 @@
     path: "{{ forti_wazuh_internal_options_path }}"
     marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH QUEUE TUNING"
     block: |-
-      {{ ((forti_wazuh_internal_options_lines | default([])) + (forti_wazuh_internal_options_extra_lines | default([]))) | join('\n') }}
+      {% for line in ((forti_wazuh_internal_options_lines | default([])) + (forti_wazuh_internal_options_extra_lines | default([]))) %}
+      {{ line }}
+      {% endfor %}
   when:
     - forti_wazuh_manage
     - wazuh_ossec_conf.stat.exists
