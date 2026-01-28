@@ -1821,9 +1821,60 @@
   when: forti_wazuh_ism_manage
   no_log: true
 
-- name: Create/Update ISM policy for Wazuh alerts
+- name: Get existing ISM policy for Wazuh alerts
   ansible.builtin.uri:
     url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_alerts_policy_id }}"
+    method: GET
+    headers: "{{ forti_wazuh_ism_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 404]
+  register: forti_wazuh_ism_alerts_policy_get
+  failed_when: false
+  when: forti_wazuh_ism_manage
+  no_log: true
+
+- name: Get existing ISM policy for Wazuh archives
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_archives_policy_id }}"
+    method: GET
+    headers: "{{ forti_wazuh_ism_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 404]
+  register: forti_wazuh_ism_archives_policy_get
+  failed_when: false
+  when: forti_wazuh_ism_manage
+  no_log: true
+
+- name: Build ISM policy update query params
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_alerts_policy_qs: >-
+      {{
+        (forti_wazuh_ism_alerts_policy_get.status | default(0) == 200)
+        | ternary(
+            '?if_seq_no=' ~ forti_wazuh_ism_alerts_policy_get.json._seq_no ~ '&if_primary_term=' ~ forti_wazuh_ism_alerts_policy_get.json._primary_term,
+            ''
+          )
+      }}
+    forti_wazuh_ism_archives_policy_qs: >-
+      {{
+        (forti_wazuh_ism_archives_policy_get.status | default(0) == 200)
+        | ternary(
+            '?if_seq_no=' ~ forti_wazuh_ism_archives_policy_get.json._seq_no ~ '&if_primary_term=' ~ forti_wazuh_ism_archives_policy_get.json._primary_term,
+            ''
+          )
+      }}
+  when: forti_wazuh_ism_manage
+  no_log: true
+
+- name: Create/Update ISM policy for Wazuh alerts
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_alerts_policy_id }}{{ forti_wazuh_ism_alerts_policy_qs | default('') }}"
     method: PUT
     headers: "{{ forti_wazuh_ism_headers }}"
     body_format: json
@@ -1851,7 +1902,7 @@
 
 - name: Create/Update ISM policy for Wazuh archives
   ansible.builtin.uri:
-    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_archives_policy_id }}"
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_archives_policy_id }}{{ forti_wazuh_ism_archives_policy_qs | default('') }}"
     method: PUT
     headers: "{{ forti_wazuh_ism_headers }}"
     body_format: json
