@@ -316,6 +316,13 @@
     fail_msg: "forti_wazuh_archives_log_retention_days must be a positive integer (e.g., 7, 14, 30)."
   when: forti_wazuh_archives_logrotate_manage
 
+- name: Validate Wazuh alerts retention days
+  ansible.builtin.assert:
+    that:
+      - (forti_wazuh_alerts_log_retention_days | int) > 0
+    fail_msg: "forti_wazuh_alerts_log_retention_days must be a positive integer (e.g., 7, 14, 30)."
+  when: forti_wazuh_alerts_logrotate_manage
+
 - name: Validate UDP port
   ansible.builtin.assert:
     that:
@@ -387,6 +394,15 @@
     group: root
     mode: "0644"
   when: forti_wazuh_archives_logrotate_manage
+
+- name: Deploy logrotate configuration for Wazuh alerts
+  ansible.builtin.template:
+    src: wazuh-alerts-logrotate.conf.j2
+    dest: "{{ forti_wazuh_alerts_logrotate_conf_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: forti_wazuh_alerts_logrotate_manage
 
 - name: Ensure rsyslog is enabled and started
   ansible.builtin.service:
@@ -1769,6 +1785,173 @@
     - forti_wazuh_archives_pipeline_manage
     - forti_wazuh_archives_pipeline_name_effective | length > 0
     - forti_wazuh_archives_pipeline_get.status | default(0) != 200
+
+# --- Wazuh Indexer/OpenSearch retention (ISM) ---
+- name: Validate OpenSearch API configuration (ISM)
+  ansible.builtin.assert:
+    that:
+      - forti_wazuh_opensearch_url | length > 0
+      - forti_wazuh_opensearch_auth_method in ["basic", "token", "none"]
+      - forti_wazuh_opensearch_auth_method != "basic" or (forti_wazuh_opensearch_username | length > 0 and forti_wazuh_opensearch_password | length > 0)
+      - forti_wazuh_opensearch_auth_method != "token" or (forti_wazuh_opensearch_token | length > 0)
+      - (forti_wazuh_ism_alerts_retention_days | int) > 0
+      - (forti_wazuh_ism_archives_retention_days | int) > 0
+    fail_msg: >-
+      ISM retention is enabled but required settings are missing.
+      Set forti_wazuh_opensearch_url and the appropriate auth variables
+      (forti_wazuh_opensearch_username/password or forti_wazuh_opensearch_token),
+      and set positive retention days for alerts/archives.
+  when: forti_wazuh_ism_manage
+
+- name: Normalize OpenSearch URL (ISM)
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_url_base: "{{ forti_wazuh_opensearch_url | regex_replace('/+$', '') }}"
+  when: forti_wazuh_ism_manage
+
+- name: Build OpenSearch request headers (ISM)
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_headers: >-
+      {{
+        {"Content-Type": "application/json"}
+        | combine(
+            (forti_wazuh_opensearch_auth_method == "token")
+            | ternary({"Authorization": "Bearer " ~ forti_wazuh_opensearch_token}, {})
+          )
+      }}
+  when: forti_wazuh_ism_manage
+  no_log: true
+
+- name: Create/Update ISM policy for Wazuh alerts
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_alerts_policy_id }}"
+    method: PUT
+    headers: "{{ forti_wazuh_ism_headers }}"
+    body_format: json
+    body:
+      policy:
+        description: "Delete wazuh-alerts indices after {{ forti_wazuh_ism_alerts_retention_days }}d"
+        default_state: hot
+        states:
+          - name: hot
+            actions: []
+            transitions:
+              - state_name: delete
+                conditions:
+                  min_index_age: "{{ forti_wazuh_ism_alerts_retention_days }}d"
+          - name: delete
+            actions:
+              - delete: {}
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 201]
+  when: forti_wazuh_ism_manage
+  no_log: true
+
+- name: Create/Update ISM policy for Wazuh archives
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/policies/{{ forti_wazuh_ism_archives_policy_id }}"
+    method: PUT
+    headers: "{{ forti_wazuh_ism_headers }}"
+    body_format: json
+    body:
+      policy:
+        description: "Delete wazuh-archives indices after {{ forti_wazuh_ism_archives_retention_days }}d"
+        default_state: hot
+        states:
+          - name: hot
+            actions: []
+            transitions:
+              - state_name: delete
+                conditions:
+                  min_index_age: "{{ forti_wazuh_ism_archives_retention_days }}d"
+          - name: delete
+            actions:
+              - delete: {}
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 201]
+  when: forti_wazuh_ism_manage
+  no_log: true
+
+- name: Fetch existing Wazuh alerts indices (ISM)
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_cat/indices/wazuh-alerts-*?format=json&h=index"
+    method: GET
+    headers: "{{ forti_wazuh_ism_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 404]
+  register: forti_wazuh_ism_alerts_indices
+  failed_when: false
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_apply_existing | bool
+  no_log: true
+
+- name: Fetch existing Wazuh archives indices (ISM)
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_cat/indices/wazuh-archives-*?format=json&h=index"
+    method: GET
+    headers: "{{ forti_wazuh_ism_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 404]
+  register: forti_wazuh_ism_archives_indices
+  failed_when: false
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_apply_existing | bool
+  no_log: true
+
+- name: Apply ISM policy to existing Wazuh alerts indices
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/add/{{ item.index }}"
+    method: POST
+    headers: "{{ forti_wazuh_ism_headers }}"
+    body_format: json
+    body:
+      policy_id: "{{ forti_wazuh_ism_alerts_policy_id }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 201]
+  loop: "{{ forti_wazuh_ism_alerts_indices.json | default([]) }}"
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_apply_existing | bool
+    - forti_wazuh_ism_alerts_indices.status | default(0) == 200
+  failed_when: false
+  no_log: true
+
+- name: Apply ISM policy to existing Wazuh archives indices
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/add/{{ item.index }}"
+    method: POST
+    headers: "{{ forti_wazuh_ism_headers }}"
+    body_format: json
+    body:
+      policy_id: "{{ forti_wazuh_ism_archives_policy_id }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 201]
+  loop: "{{ forti_wazuh_ism_archives_indices.json | default([]) }}"
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_apply_existing | bool
+    - forti_wazuh_ism_archives_indices.status | default(0) == 200
+  failed_when: false
+  no_log: true
 
 # --- Wazuh Dashboards index pattern (optional) ---
 - name: Validate Dashboards API configuration

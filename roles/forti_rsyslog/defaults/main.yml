@@ -98,6 +98,21 @@ forti_wazuh_archives_logrotate_delaycompress: "{{ forti_logrotate_delaycompress 
 forti_wazuh_archives_logrotate_copytruncate: "{{ forti_logrotate_copytruncate }}"
 forti_wazuh_archives_logrotate_allowhardlink: false
 
+# --- Wazuh alerts logrotate (separate retention) ---
+forti_wazuh_alerts_logrotate_manage: true
+forti_wazuh_alerts_logrotate_conf_path: /etc/logrotate.d/wazuh-alerts
+forti_wazuh_alerts_log_path: /var/ossec/logs/alerts/alerts.json
+forti_wazuh_alerts_log_owner: wazuh
+forti_wazuh_alerts_log_group: wazuh
+forti_wazuh_alerts_log_mode: "0660"
+forti_wazuh_alerts_logrotate_frequency: "{{ forti_logrotate_frequency }}"
+forti_wazuh_alerts_log_retention_days: 7
+forti_wazuh_alerts_logrotate_rotate: "{{ forti_wazuh_alerts_log_retention_days if forti_wazuh_alerts_logrotate_frequency == 'daily' else 12 }}"
+forti_wazuh_alerts_logrotate_compress: "{{ forti_logrotate_compress }}"
+forti_wazuh_alerts_logrotate_delaycompress: "{{ forti_logrotate_delaycompress }}"
+forti_wazuh_alerts_logrotate_copytruncate: "{{ forti_logrotate_copytruncate }}"
+forti_wazuh_alerts_logrotate_allowhardlink: false
+
 # --- Config file locations ---
 forti_rsyslog_conf_path: /etc/rsyslog.d/10-fortinet.conf
 forti_logrotate_conf_path: /etc/logrotate.d/fortinet-syslog
@@ -270,6 +285,14 @@ forti_wazuh_dashboards_tenant: ""
 forti_wazuh_dashboards_archives_pattern: "wazuh-archives-*"
 forti_wazuh_dashboards_archives_pattern_id: "wazuh-archives-*"
 forti_wazuh_dashboards_archives_time_field: "timestamp"
+
+# --- Wazuh Indexer/OpenSearch retention (ISM) ---
+forti_wazuh_ism_manage: false
+forti_wazuh_ism_alerts_retention_days: 7
+forti_wazuh_ism_archives_retention_days: 7
+forti_wazuh_ism_alerts_policy_id: wazuh-alerts-retain
+forti_wazuh_ism_archives_policy_id: wazuh-archives-retain
+forti_wazuh_ism_apply_existing: true
 
 # The localfile block will be inserted before the closing ossec_config tag
 forti_wazuh_insert_before_regex: "</ossec_config>"

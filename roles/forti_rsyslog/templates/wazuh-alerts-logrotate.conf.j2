@@ -1,0 +1,24 @@
+# Ansible managed: logrotate for Wazuh alerts
+{{ forti_wazuh_alerts_log_path }} {
+    {{ forti_wazuh_alerts_logrotate_frequency }}
+    rotate {{ forti_wazuh_alerts_logrotate_rotate }}
+    missingok
+    notifempty
+    dateext
+    dateformat -%Y%m%d
+{% if forti_wazuh_alerts_logrotate_allowhardlink | default(false) %}
+    allowhardlink
+{% endif %}
+{% if forti_wazuh_alerts_logrotate_compress %}
+    compress
+{% endif %}
+{% if forti_wazuh_alerts_logrotate_delaycompress %}
+    delaycompress
+{% endif %}
+{% if forti_wazuh_alerts_logrotate_copytruncate %}
+    copytruncate
+{% else %}
+    create {{ forti_wazuh_alerts_log_mode }} {{ forti_wazuh_alerts_log_owner }} {{ forti_wazuh_alerts_log_group }}
+{% endif %}
+    su {{ forti_wazuh_alerts_log_owner }} {{ forti_wazuh_alerts_log_group }}
+}

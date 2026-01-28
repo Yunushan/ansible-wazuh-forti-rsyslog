@@ -58,6 +58,10 @@ forti_wazuh_archives_logrotate_copytruncate: true
 # Allow rotation even when Wazuh creates hard links under /var/ossec/logs/archives/YYYY/Mon.
 forti_wazuh_archives_logrotate_allowhardlink: true
 
+# --- Wazuh alerts rotation ---
+forti_wazuh_alerts_logrotate_manage: true
+forti_wazuh_alerts_log_retention_days: 7
+
 # --- Wazuh integration ---
 forti_wazuh_manage: true
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
@@ -167,6 +171,16 @@ forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
 # forti_wazuh_opensearch_password: "{{ vault_opensearch_password }}"
 # forti_wazuh_opensearch_validate_certs: false
 # forti_wazuh_archives_pipeline_name: filebeat-7.10.2-wazuh-archives-pipeline
+
+# --- Wazuh Indexer/OpenSearch retention (ISM) ---
+forti_wazuh_ism_manage: true
+forti_wazuh_ism_alerts_retention_days: 7
+forti_wazuh_ism_archives_retention_days: 7
+forti_wazuh_opensearch_url: https://127.0.0.1:9200
+forti_wazuh_opensearch_auth_method: basic
+forti_wazuh_opensearch_username: admin
+forti_wazuh_opensearch_password: "{{ vault_opensearch_password }}"
+forti_wazuh_opensearch_validate_certs: false
 
 # --- Filebeat performance tuning (applied for 8 vCPU / 16 GB RAM) ---
 forti_wazuh_filebeat_tuning_manage: true
