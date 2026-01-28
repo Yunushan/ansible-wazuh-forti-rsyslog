@@ -10,7 +10,7 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
-    <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ item.match | string }}</match>
+    <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ item.match | string }}</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
@@ -22,7 +22,7 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
-    <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ item.match | string }}"</match>
+    <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ item.match | string }}"</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
@@ -37,7 +37,7 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
-    <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ level }}</match>
+    <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ level }}</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
@@ -49,7 +49,7 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
-    <match>{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ level }}"</match>
+    <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ level }}"</match>
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
