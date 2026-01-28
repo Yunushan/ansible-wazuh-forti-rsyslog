@@ -1891,7 +1891,7 @@
   failed_when: false
   when:
     - forti_wazuh_ism_manage
-    - forti_wazuh_ism_apply_existing | bool
+    - (forti_wazuh_ism_apply_existing | bool) or (forti_wazuh_ism_purge_now | bool)
   no_log: true
 
 - name: Fetch existing Wazuh archives indices (ISM)
@@ -1908,7 +1908,7 @@
   failed_when: false
   when:
     - forti_wazuh_ism_manage
-    - forti_wazuh_ism_apply_existing | bool
+    - (forti_wazuh_ism_apply_existing | bool) or (forti_wazuh_ism_purge_now | bool)
   no_log: true
 
 - name: Apply ISM policy to existing Wazuh alerts indices
@@ -1950,6 +1950,82 @@
     - forti_wazuh_ism_manage
     - forti_wazuh_ism_apply_existing | bool
     - forti_wazuh_ism_archives_indices.status | default(0) == 200
+  failed_when: false
+  no_log: true
+
+- name: Compute ISM purge cutoff dates (one-time)
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_purge_alerts_cutoff: >-
+      {{
+        ((ansible_date_time.epoch | int) - (forti_wazuh_ism_alerts_retention_days | int * 86400))
+        | strftime('%Y.%m.%d')
+      }}
+    forti_wazuh_ism_purge_archives_cutoff: >-
+      {{
+        ((ansible_date_time.epoch | int) - (forti_wazuh_ism_archives_retention_days | int * 86400))
+        | strftime('%Y.%m.%d')
+      }}
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_purge_now | bool
+
+- name: Select Wazuh alerts indices older than retention (one-time purge)
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_purge_alerts_indices: "{{ (forti_wazuh_ism_purge_alerts_indices | default([])) + [item.index] }}"
+  loop: "{{ forti_wazuh_ism_alerts_indices.json | default([]) }}"
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_purge_now | bool
+    - forti_wazuh_ism_alerts_indices.status | default(0) == 200
+    - item.index is match('^wazuh-alerts-.*\\d{4}\\.\\d{2}\\.\\d{2}$')
+    - (item.index | regex_search('(\\d{4}\\.\\d{2}\\.\\d{2})$')) is not none
+    - (item.index | regex_search('(\\d{4}\\.\\d{2}\\.\\d{2})$')) < forti_wazuh_ism_purge_alerts_cutoff
+
+- name: Select Wazuh archives indices older than retention (one-time purge)
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_purge_archives_indices: "{{ (forti_wazuh_ism_purge_archives_indices | default([])) + [item.index] }}"
+  loop: "{{ forti_wazuh_ism_archives_indices.json | default([]) }}"
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_purge_now | bool
+    - forti_wazuh_ism_archives_indices.status | default(0) == 200
+    - item.index is match('^wazuh-archives-.*\\d{4}\\.\\d{2}\\.\\d{2}$')
+    - (item.index | regex_search('(\\d{4}\\.\\d{2}\\.\\d{2})$')) is not none
+    - (item.index | regex_search('(\\d{4}\\.\\d{2}\\.\\d{2})$')) < forti_wazuh_ism_purge_archives_cutoff
+
+- name: Purge Wazuh alerts indices older than retention (one-time)
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/{{ item }}"
+    method: DELETE
+    headers: "{{ forti_wazuh_ism_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 202, 404]
+  loop: "{{ forti_wazuh_ism_purge_alerts_indices | default([]) }}"
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_purge_now | bool
+    - (forti_wazuh_ism_purge_alerts_indices | default([])) | length > 0
+  failed_when: false
+  no_log: true
+
+- name: Purge Wazuh archives indices older than retention (one-time)
+  ansible.builtin.uri:
+    url: "{{ forti_wazuh_ism_url_base }}/{{ item }}"
+    method: DELETE
+    headers: "{{ forti_wazuh_ism_headers }}"
+    validate_certs: "{{ forti_wazuh_opensearch_validate_certs }}"
+    url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
+    status_code: [200, 202, 404]
+  loop: "{{ forti_wazuh_ism_purge_archives_indices | default([]) }}"
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_purge_now | bool
+    - (forti_wazuh_ism_purge_archives_indices | default([])) | length > 0
   failed_when: false
   no_log: true
 

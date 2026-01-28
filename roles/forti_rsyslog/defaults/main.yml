@@ -293,6 +293,8 @@ forti_wazuh_ism_archives_retention_days: 7
 forti_wazuh_ism_alerts_policy_id: wazuh-alerts-retain
 forti_wazuh_ism_archives_policy_id: wazuh-archives-retain
 forti_wazuh_ism_apply_existing: true
+# Optional: one-time purge of indices older than retention days.
+forti_wazuh_ism_purge_now: true
 
 # The localfile block will be inserted before the closing ossec_config tag
 forti_wazuh_insert_before_regex: "</ossec_config>"
