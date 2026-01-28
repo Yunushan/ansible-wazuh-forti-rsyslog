@@ -142,6 +142,22 @@ forti_wazuh_localfile_only_future_events: false
 # Set to true only if your Wazuh version supports <only_future_events> in localfile.
 forti_wazuh_localfile_only_future_events_force: false
 
+# --- Wazuh queue tuning (internal options) ---
+# Uses local_internal_options.conf to avoid overwriting upstream defaults.
+forti_wazuh_internal_options_manage: true
+forti_wazuh_internal_options_path: /var/ossec/etc/local_internal_options.conf
+forti_wazuh_internal_options_owner: root
+forti_wazuh_internal_options_group: root
+forti_wazuh_internal_options_mode: "0644"
+# Recommended baseline for 8 vCPU / 16 GB RAM (adjust as needed).
+forti_wazuh_internal_options_logcollector_queue_size: 32768
+forti_wazuh_internal_options_analysisd_queue_size: 65536
+forti_wazuh_internal_options_lines:
+  - "logcollector.queue_size={{ forti_wazuh_internal_options_logcollector_queue_size | int }}"
+  - "analysisd.queue_size={{ forti_wazuh_internal_options_analysisd_queue_size | int }}"
+# Optional extra internal options lines.
+forti_wazuh_internal_options_extra_lines: []
+
 # --- Wazuh manager tuning (optional) ---
 # If null, tuning auto-enables when any tuning list is non-empty.
 forti_wazuh_tuning_manage: null

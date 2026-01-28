@@ -645,6 +645,49 @@
     - forti_wazuh_fail_if_missing
     - not wazuh_ossec_conf.stat.exists
 
+- name: Check for Wazuh internal options file
+  ansible.builtin.stat:
+    path: "{{ forti_wazuh_internal_options_path }}"
+  register: forti_wazuh_internal_options_stat
+  when: forti_wazuh_manage
+
+- name: Ensure Wazuh internal options file exists
+  ansible.builtin.file:
+    path: "{{ forti_wazuh_internal_options_path }}"
+    state: touch
+    owner: "{{ forti_wazuh_internal_options_owner }}"
+    group: "{{ forti_wazuh_internal_options_group }}"
+    mode: "{{ forti_wazuh_internal_options_mode }}"
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_internal_options_manage | bool
+
+- name: Remove Wazuh queue tuning block when disabled
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_internal_options_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH QUEUE TUNING"
+    state: absent
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - not (forti_wazuh_internal_options_manage | bool)
+    - forti_wazuh_internal_options_stat.stat.exists | default(false)
+  notify: Restart wazuh-manager
+
+- name: Ensure Wazuh queue tuning block is configured
+  ansible.builtin.blockinfile:
+    path: "{{ forti_wazuh_internal_options_path }}"
+    marker: "# {mark} ANSIBLE MANAGED FORTI WAZUH QUEUE TUNING"
+    block: |-
+      {{ ((forti_wazuh_internal_options_lines | default([])) + (forti_wazuh_internal_options_extra_lines | default([]))) | join('\n') }}
+  when:
+    - forti_wazuh_manage
+    - wazuh_ossec_conf.stat.exists
+    - forti_wazuh_internal_options_manage | bool
+    - ((forti_wazuh_internal_options_lines | default([])) + (forti_wazuh_internal_options_extra_lines | default([]))) | length > 0
+  notify: Restart wazuh-manager
+
 - name: Ensure Wazuh logall is configured (ossec.conf)
   ansible.builtin.lineinfile:
     path: "{{ forti_wazuh_ossec_conf_path }}"
