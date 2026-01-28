@@ -2008,13 +2008,13 @@
   ansible.builtin.set_fact:
     forti_wazuh_ism_purge_alerts_cutoff: >-
       {{
-        ((ansible_date_time.epoch | int) - (forti_wazuh_ism_alerts_retention_days | int * 86400))
-        | strftime('%Y.%m.%d')
+        '%Y.%m.%d'
+        | strftime((ansible_date_time.epoch | int) - (forti_wazuh_ism_alerts_retention_days | int * 86400))
       }}
     forti_wazuh_ism_purge_archives_cutoff: >-
       {{
-        ((ansible_date_time.epoch | int) - (forti_wazuh_ism_archives_retention_days | int * 86400))
-        | strftime('%Y.%m.%d')
+        '%Y.%m.%d'
+        | strftime((ansible_date_time.epoch | int) - (forti_wazuh_ism_archives_retention_days | int * 86400))
       }}
   when:
     - forti_wazuh_ism_manage
