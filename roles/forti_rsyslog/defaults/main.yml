@@ -187,6 +187,8 @@ forti_wazuh_fortinet_alerts_levels:
 forti_wazuh_fortinet_alerts_map: []
 forti_wazuh_fortinet_alerts_match_field: "crlevel"
 forti_wazuh_fortinet_alerts_decoded_as: ""
+# Prefer decoded fields (data.level / data.crlevel) instead of raw <match> to avoid substring collisions.
+forti_wazuh_fortinet_alerts_use_decoded_fields: true
 forti_wazuh_fortinet_alerts_rules_path: "{{ forti_wazuh_root }}/etc/rules/forti-alerts.xml"
 forti_wazuh_fortinet_alerts_rule_id_base: 100300
 

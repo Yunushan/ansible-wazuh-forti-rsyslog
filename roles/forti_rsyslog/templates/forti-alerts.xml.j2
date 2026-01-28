@@ -4,13 +4,20 @@
 {% set forti_wazuh_ssl_vpn_suppress_map = (forti_wazuh_ssl_vpn_fail_manage | bool) and (forti_wazuh_ssl_vpn_fail_match_list | length > 0) %}
 {% set forti_wazuh_ssl_vpn_fail_base_level_effective = [forti_wazuh_ssl_vpn_fail_base_level | int, 1] | max %}
 {% set forti_wazuh_fortinet_alerts_decoded_as_effective = forti_wazuh_fortinet_alerts_decoded_as | default('') | string | trim %}
+{% set forti_wazuh_fortinet_alerts_use_decoded_fields_effective = forti_wazuh_fortinet_alerts_use_decoded_fields | default(true, true) | bool %}
+{% set forti_wazuh_fortinet_alerts_match_field_name = forti_wazuh_fortinet_alerts_match_field_effective | string | trim %}
+{% set forti_wazuh_fortinet_alerts_match_via_field = forti_wazuh_fortinet_alerts_use_decoded_fields_effective and forti_wazuh_fortinet_alerts_match_field_name in ['level','crlevel'] %}
 {% if forti_wazuh_fortinet_alerts_map_effective | length > 0 %}
 {% for item in forti_wazuh_fortinet_alerts_map_effective %}
   <rule id="{{ (forti_wazuh_fortinet_alerts_rule_id_base | int) + (loop.index0 * 2) }}" level="{{ item.level | int }}">
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
+{% if forti_wazuh_fortinet_alerts_match_via_field %}
+    <field name="data.{{ forti_wazuh_fortinet_alerts_match_field_name }}">{{ item.match | string }}</field>
+{% else %}
     <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ item.match | string }}</match>
+{% endif %}
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
@@ -22,7 +29,11 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
+{% if forti_wazuh_fortinet_alerts_match_via_field %}
+    <field name="data.{{ forti_wazuh_fortinet_alerts_match_field_name }}">{{ item.match | string }}</field>
+{% else %}
     <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ item.match | string }}"</match>
+{% endif %}
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
@@ -37,7 +48,11 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
+{% if forti_wazuh_fortinet_alerts_match_via_field %}
+    <field name="data.{{ forti_wazuh_fortinet_alerts_match_field_name }}">{{ level }}</field>
+{% else %}
     <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}={{ level }}</match>
+{% endif %}
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
@@ -49,7 +64,11 @@
 {% if forti_wazuh_fortinet_alerts_decoded_as_effective | length > 0 %}
     <decoded_as>{{ forti_wazuh_fortinet_alerts_decoded_as_effective }}</decoded_as>
 {% endif %}
+{% if forti_wazuh_fortinet_alerts_match_via_field %}
+    <field name="data.{{ forti_wazuh_fortinet_alerts_match_field_name }}">{{ level }}</field>
+{% else %}
     <match>\b{{ forti_wazuh_fortinet_alerts_match_field_effective }}="{{ level }}"</match>
+{% endif %}
 {% if forti_wazuh_ssl_vpn_suppress_map %}
 {% for match in forti_wazuh_ssl_vpn_fail_match_list %}
     <match negate="yes">{{ match }}</match>
