@@ -90,36 +90,32 @@ forti_wazuh_logall_json: "yes"
 # forti_wazuh_ruleset_dirs:
 #   - "{{ forti_wazuh_root }}/ruleset/rules"
 #   - "{{ forti_wazuh_root }}/etc/rules"
-# Fortinet alert mapping (use Fortinet "level" field and map to Wazuh severities)
-forti_wazuh_fortinet_alerts_use_fortinet_level: true
-forti_wazuh_fortinet_alerts_match_field: level
+# Fortinet alert mapping (only high/critical via Fortinet "crlevel")
+forti_wazuh_fortinet_alerts_use_fortinet_level: false
+forti_wazuh_fortinet_alerts_match_field: crlevel
 forti_wazuh_fortinet_alerts_level_map:
-  - match: notice
-    level: 3
-  - match: warning
-    level: 8
-  - match: error
+  - match: high
     level: 12
   - match: critical
-    level: 15
-  - match: alert
-    level: 15
-  - match: emergency
     level: 15
 # Scope Fortinet alert rules to the Fortinet decoder to avoid false positives.
 forti_wazuh_fortinet_alerts_decoded_as: fortigate-firewall-v5
 
-# To use Fortinet criticality (crlevel=low/medium/high/critical) instead:
-# forti_wazuh_fortinet_alerts_use_fortinet_level: false
-# forti_wazuh_fortinet_alerts_match_field: crlevel
+# To use Fortinet "level" (notice/warning/error/critical/alert/emergency) instead:
+# forti_wazuh_fortinet_alerts_use_fortinet_level: true
+# forti_wazuh_fortinet_alerts_match_field: level
 # forti_wazuh_fortinet_alerts_level_map:
-#   - match: low
+#   - match: notice
 #     level: 3
-#   - match: medium
+#   - match: warning
 #     level: 8
-#   - match: high
+#   - match: error
 #     level: 12
 #   - match: critical
+#     level: 15
+#   - match: alert
+#     level: 15
+#   - match: emergency
 #     level: 15
 
 # --- Fortinet SSL VPN login failures (thresholded alert) ---

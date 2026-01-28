@@ -169,18 +169,12 @@ forti_wazuh_fortinet_alerts_manage: null
 # Set true to use Fortinet "level" (notice/warning/error/critical/alert/emergency) instead.
 forti_wazuh_fortinet_alerts_use_fortinet_level: false
 forti_wazuh_fortinet_alerts_level_map:
-  - match: low
-    level: 3
-  - match: medium
-    level: 8
   - match: high
     level: 12
   - match: critical
     level: 15
 forti_wazuh_fortinet_alerts_levels:
   - 12
-  - 13
-  - 14
   - 15
 # Mapping for string severities (overrides levels list when non-empty).
 # Clear this list to use numeric levels instead.
