@@ -179,8 +179,9 @@ forti_wazuh_opensearch_auth_method: basic
 forti_wazuh_opensearch_username: admin
 # Define `vault_opensearch_password` in your vault file, or set
 # `forti_wazuh_opensearch_password_plain` here for a temporary non-vault run.
+# You can also export FORTI_WAZUH_OPENSEARCH_PASSWORD in the shell.
 forti_wazuh_opensearch_password_plain: ""
-forti_wazuh_opensearch_password: "{{ vault_opensearch_password | default(forti_wazuh_opensearch_password_plain) }}"
+forti_wazuh_opensearch_password: "{{ vault_opensearch_password | default(lookup('ansible.builtin.env', 'FORTI_WAZUH_OPENSEARCH_PASSWORD'), true) | default(forti_wazuh_opensearch_password_plain, true) }}"
 forti_wazuh_opensearch_validate_certs: false
 
 # --- Filebeat performance tuning (applied for 8 vCPU / 16 GB RAM) ---
