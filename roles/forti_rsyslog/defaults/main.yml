@@ -320,10 +320,10 @@ forti_wazuh_ism_archives_policy_id: wazuh-archives-retain
 forti_wazuh_ism_apply_existing: true
 # Optional: one-time purge of indices older than retention days.
 forti_wazuh_ism_purge_now: true
-# Retry/backoff for transient OpenSearch throttling (e.g., HTTP 429).
+# Retry/backoff for transient OpenSearch throttling/outage (e.g., HTTP 429/503).
 forti_wazuh_ism_api_retries: 8
 forti_wazuh_ism_api_delay: 5
-# Keep strict failure behavior on persistent HTTP 429 by default.
+# Keep strict failure behavior on persistent HTTP 429/503 by default.
 # Set false to continue playbook execution and warn instead.
 forti_wazuh_ism_fail_on_429: true
 

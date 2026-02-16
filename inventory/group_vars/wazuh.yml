@@ -173,10 +173,14 @@ forti_wazuh_ism_manage: true
 forti_wazuh_ism_alerts_retention_days: 7
 forti_wazuh_ism_archives_retention_days: 7
 forti_wazuh_ism_fail_on_429: false
+forti_wazuh_ism_purge_now: false
 forti_wazuh_opensearch_url: https://127.0.0.1:9200
 forti_wazuh_opensearch_auth_method: basic
 forti_wazuh_opensearch_username: admin
-forti_wazuh_opensearch_password: "{{ vault_opensearch_password }}"
+# Define `vault_opensearch_password` in your vault file, or set
+# `forti_wazuh_opensearch_password_plain` here for a temporary non-vault run.
+forti_wazuh_opensearch_password_plain: ""
+forti_wazuh_opensearch_password: "{{ vault_opensearch_password | default(forti_wazuh_opensearch_password_plain) }}"
 forti_wazuh_opensearch_validate_certs: false
 
 # --- Filebeat performance tuning (applied for 8 vCPU / 16 GB RAM) ---
