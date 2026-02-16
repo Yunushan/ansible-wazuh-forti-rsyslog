@@ -1889,8 +1889,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 404]
+    status_code: [200, 404, 429]
   register: forti_wazuh_ism_alerts_policy_get
+  until: forti_wazuh_ism_alerts_policy_get.status | default(0) in [200, 404]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   failed_when: false
   when: forti_wazuh_ism_manage
   no_log: true
@@ -1904,8 +1907,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 404]
+    status_code: [200, 404, 429]
   register: forti_wazuh_ism_archives_policy_get
+  until: forti_wazuh_ism_archives_policy_get.status | default(0) in [200, 404]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   failed_when: false
   when: forti_wazuh_ism_manage
   no_log: true
@@ -1955,7 +1961,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 201]
+    status_code: [200, 201, 429]
+  register: forti_wazuh_ism_alerts_policy_put
+  until: forti_wazuh_ism_alerts_policy_put.status | default(0) in [200, 201]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   when: forti_wazuh_ism_manage
   no_log: true
 
@@ -1983,7 +1993,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 201]
+    status_code: [200, 201, 429]
+  register: forti_wazuh_ism_archives_policy_put
+  until: forti_wazuh_ism_archives_policy_put.status | default(0) in [200, 201]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   when: forti_wazuh_ism_manage
   no_log: true
 
@@ -1996,8 +2010,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 404]
+    status_code: [200, 404, 429]
   register: forti_wazuh_ism_alerts_indices
+  until: forti_wazuh_ism_alerts_indices.status | default(0) in [200, 404]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   failed_when: false
   when:
     - forti_wazuh_ism_manage
@@ -2013,8 +2030,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 404]
+    status_code: [200, 404, 429]
   register: forti_wazuh_ism_archives_indices
+  until: forti_wazuh_ism_archives_indices.status | default(0) in [200, 404]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   failed_when: false
   when:
     - forti_wazuh_ism_manage
@@ -2033,7 +2053,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 201]
+    status_code: [200, 201, 429]
+  register: forti_wazuh_ism_alerts_policy_apply
+  until: forti_wazuh_ism_alerts_policy_apply.status | default(0) in [200, 201]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   loop: "{{ forti_wazuh_ism_alerts_indices.json | default([]) }}"
   when:
     - forti_wazuh_ism_manage
@@ -2054,7 +2078,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 201]
+    status_code: [200, 201, 429]
+  register: forti_wazuh_ism_archives_policy_apply
+  until: forti_wazuh_ism_archives_policy_apply.status | default(0) in [200, 201]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   loop: "{{ forti_wazuh_ism_archives_indices.json | default([]) }}"
   when:
     - forti_wazuh_ism_manage
@@ -2112,7 +2140,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 202, 404]
+    status_code: [200, 202, 404, 429]
+  register: forti_wazuh_ism_alerts_purge
+  until: forti_wazuh_ism_alerts_purge.status | default(0) in [200, 202, 404]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   loop: "{{ forti_wazuh_ism_purge_alerts_indices | default([]) }}"
   when:
     - forti_wazuh_ism_manage
@@ -2130,7 +2162,11 @@
     url_username: "{{ forti_wazuh_opensearch_username if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     url_password: "{{ forti_wazuh_opensearch_password if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
     force_basic_auth: "{{ true if forti_wazuh_opensearch_auth_method == 'basic' else omit }}"
-    status_code: [200, 202, 404]
+    status_code: [200, 202, 404, 429]
+  register: forti_wazuh_ism_archives_purge
+  until: forti_wazuh_ism_archives_purge.status | default(0) in [200, 202, 404]
+  retries: "{{ forti_wazuh_ism_api_retries | int }}"
+  delay: "{{ forti_wazuh_ism_api_delay | int }}"
   loop: "{{ forti_wazuh_ism_purge_archives_indices | default([]) }}"
   when:
     - forti_wazuh_ism_manage

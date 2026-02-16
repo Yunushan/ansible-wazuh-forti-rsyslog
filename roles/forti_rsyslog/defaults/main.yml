@@ -320,6 +320,9 @@ forti_wazuh_ism_archives_policy_id: wazuh-archives-retain
 forti_wazuh_ism_apply_existing: true
 # Optional: one-time purge of indices older than retention days.
 forti_wazuh_ism_purge_now: true
+# Retry/backoff for transient OpenSearch throttling (e.g., HTTP 429).
+forti_wazuh_ism_api_retries: 8
+forti_wazuh_ism_api_delay: 5
 
 # The localfile block will be inserted before the closing ossec_config tag
 forti_wazuh_insert_before_regex: "</ossec_config>"
