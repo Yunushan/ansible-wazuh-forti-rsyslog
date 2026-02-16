@@ -323,6 +323,9 @@ forti_wazuh_ism_purge_now: true
 # Retry/backoff for transient OpenSearch throttling (e.g., HTTP 429).
 forti_wazuh_ism_api_retries: 8
 forti_wazuh_ism_api_delay: 5
+# Keep strict failure behavior on persistent HTTP 429 by default.
+# Set false to continue playbook execution and warn instead.
+forti_wazuh_ism_fail_on_429: true
 
 # The localfile block will be inserted before the closing ossec_config tag
 forti_wazuh_insert_before_regex: "</ossec_config>"

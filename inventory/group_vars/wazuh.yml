@@ -172,6 +172,7 @@ forti_wazuh_archives_severity_mode: drop    # drop | zero | keep
 forti_wazuh_ism_manage: true
 forti_wazuh_ism_alerts_retention_days: 7
 forti_wazuh_ism_archives_retention_days: 7
+forti_wazuh_ism_fail_on_429: false
 forti_wazuh_opensearch_url: https://127.0.0.1:9200
 forti_wazuh_opensearch_auth_method: basic
 forti_wazuh_opensearch_username: admin
