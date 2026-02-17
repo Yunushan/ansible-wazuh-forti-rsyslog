@@ -2061,6 +2061,54 @@
     - (forti_wazuh_ism_apply_existing | bool) or (forti_wazuh_ism_purge_now | bool)
   no_log: true
 
+- name: Normalize Wazuh alerts indices response to list
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_alerts_indices_list: >-
+      {{
+        forti_wazuh_ism_alerts_indices.json
+        if ((forti_wazuh_ism_alerts_indices.json | default([]) | type_debug) == 'list')
+        else []
+      }}
+  when:
+    - forti_wazuh_ism_manage
+    - (forti_wazuh_ism_apply_existing | bool) or (forti_wazuh_ism_purge_now | bool)
+    - forti_wazuh_ism_alerts_indices is defined
+
+- name: Normalize Wazuh archives indices response to list
+  ansible.builtin.set_fact:
+    forti_wazuh_ism_archives_indices_list: >-
+      {{
+        forti_wazuh_ism_archives_indices.json
+        if ((forti_wazuh_ism_archives_indices.json | default([]) | type_debug) == 'list')
+        else []
+      }}
+  when:
+    - forti_wazuh_ism_manage
+    - (forti_wazuh_ism_apply_existing | bool) or (forti_wazuh_ism_purge_now | bool)
+    - forti_wazuh_ism_archives_indices is defined
+
+- name: Warn if Wazuh alerts indices response is not a list
+  ansible.builtin.debug:
+    msg: >-
+      OpenSearch _cat/indices for wazuh-alerts returned
+      {{ forti_wazuh_ism_alerts_indices.json | default({}) | type_debug }}.
+      Skipping apply/purge loops for alerts in this run.
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_alerts_indices.status | default(0) == 200
+    - (forti_wazuh_ism_alerts_indices.json | default([]) | type_debug) != 'list'
+
+- name: Warn if Wazuh archives indices response is not a list
+  ansible.builtin.debug:
+    msg: >-
+      OpenSearch _cat/indices for wazuh-archives returned
+      {{ forti_wazuh_ism_archives_indices.json | default({}) | type_debug }}.
+      Skipping apply/purge loops for archives in this run.
+  when:
+    - forti_wazuh_ism_manage
+    - forti_wazuh_ism_archives_indices.status | default(0) == 200
+    - (forti_wazuh_ism_archives_indices.json | default([]) | type_debug) != 'list'
+
 - name: Apply ISM policy to existing Wazuh alerts indices
   ansible.builtin.uri:
     url: "{{ forti_wazuh_ism_url_base }}/_plugins/_ism/add/{{ item.index }}"
@@ -2078,7 +2126,7 @@
   until: forti_wazuh_ism_alerts_policy_apply.status | default(0) in ([200, 201] + ((forti_wazuh_ism_fail_on_429 | bool) | ternary([], [429, 503])))
   retries: "{{ forti_wazuh_ism_api_retries | int }}"
   delay: "{{ forti_wazuh_ism_api_delay | int }}"
-  loop: "{{ forti_wazuh_ism_alerts_indices.json | default([]) }}"
+  loop: "{{ forti_wazuh_ism_alerts_indices_list | default([]) | selectattr('index', 'defined') | list }}"
   when:
     - forti_wazuh_ism_manage
     - forti_wazuh_ism_apply_existing | bool
@@ -2103,7 +2151,7 @@
   until: forti_wazuh_ism_archives_policy_apply.status | default(0) in ([200, 201] + ((forti_wazuh_ism_fail_on_429 | bool) | ternary([], [429, 503])))
   retries: "{{ forti_wazuh_ism_api_retries | int }}"
   delay: "{{ forti_wazuh_ism_api_delay | int }}"
-  loop: "{{ forti_wazuh_ism_archives_indices.json | default([]) }}"
+  loop: "{{ forti_wazuh_ism_archives_indices_list | default([]) | selectattr('index', 'defined') | list }}"
   when:
     - forti_wazuh_ism_manage
     - forti_wazuh_ism_apply_existing | bool
@@ -2130,7 +2178,7 @@
 - name: Select Wazuh alerts indices older than retention (one-time purge)
   ansible.builtin.set_fact:
     forti_wazuh_ism_purge_alerts_indices: "{{ (forti_wazuh_ism_purge_alerts_indices | default([])) + [item.index] }}"
-  loop: "{{ forti_wazuh_ism_alerts_indices.json | default([]) }}"
+  loop: "{{ forti_wazuh_ism_alerts_indices_list | default([]) | selectattr('index', 'defined') | list }}"
   when:
     - forti_wazuh_ism_manage
     - forti_wazuh_ism_purge_now | bool
@@ -2142,7 +2190,7 @@
 - name: Select Wazuh archives indices older than retention (one-time purge)
   ansible.builtin.set_fact:
     forti_wazuh_ism_purge_archives_indices: "{{ (forti_wazuh_ism_purge_archives_indices | default([])) + [item.index] }}"
-  loop: "{{ forti_wazuh_ism_archives_indices.json | default([]) }}"
+  loop: "{{ forti_wazuh_ism_archives_indices_list | default([]) | selectattr('index', 'defined') | list }}"
   when:
     - forti_wazuh_ism_manage
     - forti_wazuh_ism_purge_now | bool
