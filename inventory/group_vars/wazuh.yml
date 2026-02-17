@@ -74,6 +74,9 @@ forti_wazuh_manage_logall: true
 forti_wazuh_logall: "yes"
 forti_wazuh_manage_logall_json: true
 forti_wazuh_logall_json: "yes"
+# Speed optimization for routine reruns:
+# skip rsyslog health-check probes (enable temporarily when troubleshooting).
+forti_rsyslog_healthcheck: false
 
 # --- Wazuh manager tuning (optional) ---
 # forti_wazuh_tuning_manage: null
@@ -176,6 +179,9 @@ forti_wazuh_ism_manage: true
 forti_wazuh_ism_alerts_retention_days: 7
 forti_wazuh_ism_archives_retention_days: 7
 forti_wazuh_ism_fail_on_429: false
+# Speed optimization: avoid re-applying policy to all historical indices on every run.
+# Keep this false for routine runs; set true only for one-time maintenance.
+forti_wazuh_ism_apply_existing: false
 forti_wazuh_ism_purge_now: false
 forti_wazuh_opensearch_url: https://127.0.0.1:9200
 forti_wazuh_opensearch_auth_method: basic
