@@ -61,6 +61,9 @@ forti_wazuh_archives_logrotate_allowhardlink: true
 # --- Wazuh alerts rotation ---
 forti_wazuh_alerts_logrotate_manage: true
 forti_wazuh_alerts_log_retention_days: 7
+# alerts.json may also be hard-linked by Wazuh internals; allow rotation safely.
+forti_wazuh_alerts_logrotate_copytruncate: true
+forti_wazuh_alerts_logrotate_allowhardlink: true
 
 # --- Wazuh integration ---
 forti_wazuh_manage: true
