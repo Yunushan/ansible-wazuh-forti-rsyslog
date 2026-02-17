@@ -179,10 +179,10 @@ forti_wazuh_ism_manage: true
 forti_wazuh_ism_alerts_retention_days: 7
 forti_wazuh_ism_archives_retention_days: 7
 forti_wazuh_ism_fail_on_429: false
-# Speed optimization: avoid re-applying policy to all historical indices on every run.
-# Keep this false for routine runs; set true only for one-time maintenance.
-forti_wazuh_ism_apply_existing: false
-forti_wazuh_ism_purge_now: false
+# Enforce retention automatically for existing indices too.
+forti_wazuh_ism_apply_existing: true
+# Purge indices older than retention on each run (no manual curl needed).
+forti_wazuh_ism_purge_now: true
 forti_wazuh_opensearch_url: https://127.0.0.1:9200
 forti_wazuh_opensearch_auth_method: basic
 forti_wazuh_opensearch_username: admin

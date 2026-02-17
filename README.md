@@ -210,6 +210,26 @@ Use this to re-ingest a missing time window from a rotated Fortinet log.
 | `forti_wazuh_manage_logall_json` | `true` | Manage `<logall_json>` in `ossec.conf` |
 | `forti_wazuh_logall_json` | `yes` | Value for `<logall_json>` |
 
+### Wazuh Indexer/OpenSearch retention (ISM)
+
+Use this block to keep both `wazuh-alerts-*` and `wazuh-archives-*` for a fixed number of days.
+
+| Variable | Default | Meaning |
+|---|---:|---|
+| `forti_wazuh_ism_manage` | `false` | Enable ISM retention automation |
+| `forti_wazuh_ism_alerts_retention_days` | `7` | Keep `wazuh-alerts-*` for this many days |
+| `forti_wazuh_ism_archives_retention_days` | `7` | Keep `wazuh-archives-*` for this many days |
+| `forti_wazuh_ism_apply_existing` | `true` | Attach policy to already-existing indices |
+| `forti_wazuh_ism_purge_now` | `true` | Delete indices older than retention during playbook run |
+| `forti_wazuh_opensearch_url` | `""` | OpenSearch/Wazuh Indexer URL (e.g. `https://127.0.0.1:9200`) |
+| `forti_wazuh_opensearch_auth_method` | `basic` | Auth method: `basic`, `token`, `none` |
+| `forti_wazuh_opensearch_username` | `""` | Username for `basic` auth |
+| `forti_wazuh_opensearch_password` | `""` | Password for `basic` auth |
+| `forti_wazuh_opensearch_token` | `""` | Bearer token for `token` auth |
+| `forti_wazuh_opensearch_validate_certs` | `true` | Validate HTTPS certificates |
+
+**Note:** The role creates ISM policies with `ism_template` for both index patterns, so new daily indices are auto-managed without manual API calls.
+
 ### Wazuh manager tuning (optional)
 
 | Variable | Default | Meaning |
@@ -467,6 +487,18 @@ forti_syslog_allowed_senders:
 # Wazuh config path/service name (change if your install differs)
 forti_wazuh_ossec_conf_path: /var/ossec/etc/ossec.conf
 forti_wazuh_manager_service_name: wazuh-manager
+
+# (Optional) Auto-delete old index data after 7 days
+# forti_wazuh_ism_manage: true
+# forti_wazuh_ism_alerts_retention_days: 7
+# forti_wazuh_ism_archives_retention_days: 7
+# forti_wazuh_ism_apply_existing: true
+# forti_wazuh_ism_purge_now: true
+# forti_wazuh_opensearch_url: https://127.0.0.1:9200
+# forti_wazuh_opensearch_auth_method: basic
+# forti_wazuh_opensearch_username: admin
+# forti_wazuh_opensearch_password: "{{ vault_opensearch_password }}"
+# forti_wazuh_opensearch_validate_certs: false
 
 # (Optional) create Wazuh archives index pattern in Dashboards
 # forti_wazuh_dashboards_manage: true
