@@ -1,6 +1,0 @@
-- name: Sync FortiGate WAN/public IP to NetBox
-  hosts: forti_netbox
-  gather_facts: false
-  become: false
-  roles:
-    - role: forti_netbox_public_ip
