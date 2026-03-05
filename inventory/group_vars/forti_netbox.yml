@@ -1,0 +1,61 @@
+# Optional group vars for playbooks/forti_netbox_public_ip.yml
+
+# --- FortiGate source ---
+forti_host: "192.0.2.10"
+forti_vdom: "root"
+forti_interface: "wan1"
+forti_interface_list: []
+forti_validate_certs: false
+forti_api_timeout: 30
+
+# IP source:
+# - auto: prefer runtime monitor API, fallback to config API
+# - runtime: monitor API only
+# - config: config API only
+forti_ip_source: auto
+forti_public_ip_prefix_fallback: 32
+forti_ipv6_prefix_fallback: 128
+forti_sync_ipv4: true
+forti_sync_ipv6: true
+
+# Bulk mode: auto-discover and sync all matching public IPv4s.
+forti_sync_all_public_ips: true
+forti_sync_all_wan_only: false
+forti_skip_private_ipv4_in_bulk: true
+forti_skip_cgnat_ipv4_in_bulk: true
+# forti_interface_include_regex: "^wan"
+# forti_interface_exclude_regex: "^mgmt"
+# forti_fail_when_no_matching_ips: true
+
+# Auth mode option 1 (recommended): dedicated REST API Admin token
+# forti_api_auth_method: token
+# forti_api_token: "{{ vault_forti_api_token }}"
+
+# Auth mode option 2: username/password account (e.g. super_admin_readonly)
+forti_api_auth_method: password
+forti_api_username: super_admin_readonly_user
+forti_api_password: "{{ vault_forti_api_password }}"
+
+# --- NetBox destination ---
+netbox_url: "https://netbox.example.com"
+netbox_token: "{{ vault_netbox_token }}"
+netbox_validate_certs: false
+netbox_api_timeout: 30
+
+netbox_device_name: "FGT-HQ"
+netbox_interface_name: ""
+# Optional mapping when interface names differ between Forti and NetBox.
+# netbox_interface_map:
+#   wan1: uplink-1
+#   wan2: uplink-2
+netbox_ip_status: active
+netbox_ip_description: ""
+netbox_ip_dns_name: ""
+
+# Safety behavior
+netbox_allow_reassign: false
+netbox_skip_missing_interfaces: true
+netbox_set_primary_ip4: false
+# netbox_primary_ip_interface: wan1
+netbox_set_primary_ip6: false
+# netbox_primary_ip6_interface: wan1

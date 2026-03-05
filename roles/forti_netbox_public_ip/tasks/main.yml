@@ -1,0 +1,696 @@
+- name: Validate generic variables
+  ansible.builtin.assert:
+    that:
+      - forti_host | length > 0
+      - forti_vdom | length > 0
+      - forti_api_auth_method in ["token", "password"]
+      - forti_ip_source in ["auto", "config", "runtime"]
+      - forti_sync_ipv4 | bool or forti_sync_ipv6 | bool
+      - netbox_url | length > 0
+      - netbox_token | length > 0
+      - netbox_device_name | length > 0
+      - forti_sync_all_public_ips | bool or forti_interface_list | length > 0 or forti_interface | length > 0
+    fail_msg: "Set FortiGate and NetBox variables in inventory/group_vars/forti_netbox.yml."
+
+- name: Validate token auth variables
+  ansible.builtin.assert:
+    that:
+      - forti_api_token | length > 0
+    fail_msg: "forti_api_token is required when forti_api_auth_method=token."
+  when: forti_api_auth_method == "token"
+
+- name: Validate password auth variables
+  ansible.builtin.assert:
+    that:
+      - forti_api_username | length > 0
+      - forti_api_password | length > 0
+    fail_msg: "forti_api_username and forti_api_password are required when forti_api_auth_method=password."
+  when: forti_api_auth_method == "password"
+
+- name: Build API base URLs
+  ansible.builtin.set_fact:
+    forti_api_base_url: >-
+      {{
+        (
+          forti_host
+          if (forti_host | regex_search('^https?://'))
+          else ('https://' ~ forti_host)
+        ) | regex_replace('/+$', '')
+      }}
+    netbox_api_base_url: >-
+      {{
+        (
+          netbox_url
+          | regex_replace('/+$', '')
+          | regex_replace('/api$', '')
+        ) ~ '/api'
+      }}
+
+- name: Login to FortiGate with username/password
+  ansible.builtin.uri:
+    url: "{{ forti_api_base_url }}/logincheck"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      username: "{{ forti_api_username }}"
+      secretkey: "{{ forti_api_password }}"
+      ajax: "1"
+    validate_certs: "{{ forti_validate_certs }}"
+    return_content: true
+    timeout: "{{ forti_api_timeout | int }}"
+    status_code: 200
+  register: forti_login
+  changed_when: false
+  no_log: true
+  when: forti_api_auth_method == "password"
+
+- name: Validate FortiGate password login
+  ansible.builtin.assert:
+    that:
+      - forti_login.cookies_string | default("") | length > 0
+    fail_msg: "FortiGate password authentication failed. Check credentials and trusted hosts."
+  when: forti_api_auth_method == "password"
+
+- name: Build FortiGate headers for token auth
+  ansible.builtin.set_fact:
+    forti_api_headers:
+      Authorization: "Bearer {{ forti_api_token }}"
+  no_log: true
+  when: forti_api_auth_method == "token"
+
+- name: Build FortiGate headers for password auth
+  ansible.builtin.set_fact:
+    forti_api_headers:
+      X-CSRFTOKEN: "{{ forti_login.cookies.ccsrftoken | default('') | regex_replace('^\"|\"$', '') }}"
+      Cookie: "{{ forti_login.cookies_string }}"
+  no_log: true
+  when: forti_api_auth_method == "password"
+
+- name: Read FortiGate interface config list
+  ansible.builtin.uri:
+    url: "{{ forti_api_base_url }}/api/v2/cmdb/system/interface/?vdom={{ forti_vdom | urlencode }}"
+    method: GET
+    headers: "{{ forti_api_headers }}"
+    validate_certs: "{{ forti_validate_certs }}"
+    return_content: true
+    timeout: "{{ forti_api_timeout | int }}"
+    status_code: 200
+  register: forti_interface_config_list
+  changed_when: false
+
+- name: Read FortiGate runtime interface list
+  ansible.builtin.uri:
+    url: "{{ forti_api_base_url }}/api/v2/monitor/system/interface/select/?vdom={{ forti_vdom | urlencode }}"
+    method: GET
+    headers: "{{ forti_api_headers }}"
+    validate_certs: "{{ forti_validate_certs }}"
+    return_content: true
+    timeout: "{{ forti_api_timeout | int }}"
+    status_code:
+      - 200
+      - 403
+      - 404
+  register: forti_interface_runtime_list
+  changed_when: false
+  when: forti_ip_source in ["auto", "runtime"]
+
+- name: Ensure runtime source is reachable when requested
+  ansible.builtin.assert:
+    that:
+      - forti_interface_runtime_list.status == 200
+    fail_msg: "forti_ip_source=runtime requires /monitor/system/interface/select/ API access."
+  when: forti_ip_source == "runtime"
+
+- name: Initialize Forti interface maps
+  ansible.builtin.set_fact:
+    forti_cfg_by_name: {}
+    forti_runtime_by_name: {}
+    forti_runtime6_by_name: {}
+
+- name: Build Forti config map by interface name
+  ansible.builtin.set_fact:
+    forti_cfg_by_name: >-
+      {{
+        forti_cfg_by_name | combine(
+          {
+            item.name: {
+              'cfg_ip': (forti_cfg_tokens[0] if forti_cfg_tokens | length > 0 else ''),
+              'cfg_mask': (forti_cfg_tokens[1] if forti_cfg_tokens | length > 1 else ''),
+              'cfg6_ip': (forti_cfg6_ip if forti_cfg6_ip | length > 0 else ''),
+              'cfg6_prefix': (forti_cfg6_prefix | int),
+              'role': (item.role | default('') | string | lower)
+            }
+          }
+        )
+      }}
+  vars:
+    forti_cfg_tokens: "{{ (item.ip | default('') | string).split() }}"
+    forti_cfg6_raw: >-
+      {{
+        item['ip6-address']
+        | default(
+            item['ipv6-address']
+            | default(
+                item['ip6_address']
+                | default(
+                    item['ipv6_address']
+                    | default(
+                        item['ip6']
+                        | default('')
+                    )
+                )
+            )
+        )
+      }}
+    forti_cfg6_raw_str: "{{ forti_cfg6_raw | string }}"
+    forti_cfg6_cidr: "{{ forti_cfg6_raw_str | regex_search('(?i)([0-9a-f:]+/[0-9]{1,3})') | default('', true) }}"
+    forti_cfg6_ip: >-
+      {{
+        (forti_cfg6_cidr.split('/')[0])
+        if forti_cfg6_cidr | length > 0
+        else (
+          forti_cfg6_raw_str
+          | regex_search('(?i)((?:[0-9a-f]{0,4}:){2,}[0-9a-f:]{0,39})')
+          | default('', true)
+        )
+      }}
+    forti_cfg6_prefix: >-
+      {{
+        (forti_cfg6_cidr.split('/')[1] | int)
+        if forti_cfg6_cidr | length > 0
+        else (forti_ipv6_prefix_fallback | int)
+      }}
+  loop: "{{ forti_interface_config_list.json.results | default([]) }}"
+  when:
+    - item.name is defined
+    - item.name | string | length > 0
+
+- name: Build Forti runtime map by interface name
+  ansible.builtin.set_fact:
+    forti_runtime_by_name: "{{ forti_runtime_by_name | combine({item.name: forti_runtime_ip}) }}"
+    forti_runtime6_by_name: "{{ forti_runtime6_by_name | combine({item.name: {'ip': forti_runtime6_ip, 'prefix': forti_runtime6_prefix | int}}) }}"
+  vars:
+    forti_runtime_ip_raw: >-
+      {{
+        item['ipv4-address']
+        | default(
+            item['ipv4_address']
+            | default(
+                item['ip']
+                | default(
+                    item['address']
+                    | default('')
+                )
+            )
+        )
+      }}
+    forti_runtime_ip: "{{ (forti_runtime_ip_raw | string | regex_search('\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b')) | default('', true) }}"
+    forti_runtime6_raw: >-
+      {{
+        item['ipv6-address']
+        | default(
+            item['ipv6_address']
+            | default(
+                item['ip6-address']
+                | default(
+                    item['ip6_address']
+                    | default(
+                        item['ip6']
+                        | default('')
+                    )
+                )
+            )
+        )
+      }}
+    forti_runtime6_raw_str: "{{ forti_runtime6_raw | string }}"
+    forti_runtime6_cidr: "{{ forti_runtime6_raw_str | regex_search('(?i)([0-9a-f:]+/[0-9]{1,3})') | default('', true) }}"
+    forti_runtime6_ip: >-
+      {{
+        (forti_runtime6_cidr.split('/')[0])
+        if forti_runtime6_cidr | length > 0
+        else (
+          forti_runtime6_raw_str
+          | regex_search('(?i)((?:[0-9a-f]{0,4}:){2,}[0-9a-f:]{0,39})')
+          | default('', true)
+        )
+      }}
+    forti_runtime6_prefix: >-
+      {{
+        (forti_runtime6_cidr.split('/')[1] | int)
+        if forti_runtime6_cidr | length > 0
+        else (forti_ipv6_prefix_fallback | int)
+      }}
+  loop: "{{ forti_interface_runtime_list.json.results | default([]) }}"
+  when:
+    - forti_ip_source in ["auto", "runtime"]
+    - forti_interface_runtime_list.status | default(0) == 200
+    - item.name is defined
+    - item.name | string | length > 0
+
+- name: Build requested interface list
+  ansible.builtin.set_fact:
+    forti_requested_interfaces: >-
+      {{
+        (
+          ((forti_cfg_by_name.keys() | list) + (forti_runtime_by_name.keys() | list)) | unique
+          if forti_sync_all_public_ips | bool
+          else (forti_interface_list if forti_interface_list | length > 0 else [forti_interface])
+        )
+      }}
+
+- name: Apply include regex filter
+  ansible.builtin.set_fact:
+    forti_filtered_interfaces_step1: >-
+      {{
+        (
+          forti_requested_interfaces
+          | select('match', forti_interface_include_regex)
+          | list
+        )
+        if forti_interface_include_regex | length > 0
+        else forti_requested_interfaces
+      }}
+
+- name: Apply exclude regex filter
+  ansible.builtin.set_fact:
+    forti_filtered_interfaces: >-
+      {{
+        (
+          forti_filtered_interfaces_step1
+          | reject('match', forti_interface_exclude_regex)
+          | list
+        )
+        if forti_interface_exclude_regex | length > 0
+        else forti_filtered_interfaces_step1
+      }}
+
+- name: Initialize sync item list
+  ansible.builtin.set_fact:
+    forti_sync_items: []
+
+- name: Build sync candidate list
+  ansible.builtin.set_fact:
+    forti_sync_items: "{{ forti_sync_items + forti_sync_candidates_current }}"
+  vars:
+    forti_cfg_obj: "{{ forti_cfg_by_name[item] | default({}) }}"
+    forti_cfg_ip: "{{ forti_cfg_obj.cfg_ip | default('') }}"
+    forti_cfg_mask: "{{ forti_cfg_obj.cfg_mask | default('') }}"
+    forti_cfg6_ip: "{{ forti_cfg_obj.cfg6_ip | default('') }}"
+    forti_cfg6_prefix: "{{ forti_cfg_obj.cfg6_prefix | default(forti_ipv6_prefix_fallback | int) | int }}"
+    forti_cfg_role: "{{ forti_cfg_obj.role | default('') }}"
+    forti_runtime_ip: "{{ forti_runtime_by_name[item] | default('') }}"
+    forti_runtime6_obj: "{{ forti_runtime6_by_name[item] | default({}) }}"
+    forti_runtime6_ip: "{{ forti_runtime6_obj.ip | default('') }}"
+    forti_runtime6_prefix: "{{ forti_runtime6_obj.prefix | default(forti_ipv6_prefix_fallback | int) | int }}"
+
+    forti_selected_source_v4: >-
+      {{
+        'runtime'
+        if (
+          forti_ip_source in ['auto', 'runtime']
+          and forti_runtime_ip | length > 0
+          and forti_runtime_ip != '0.0.0.0'
+        )
+        else 'config'
+      }}
+    forti_selected_ip_v4: >-
+      {{
+        forti_runtime_ip
+        if (
+          forti_ip_source in ['auto', 'runtime']
+          and forti_runtime_ip | length > 0
+          and forti_runtime_ip != '0.0.0.0'
+        )
+        else forti_cfg_ip
+      }}
+    forti_selected_prefix_v4: >-
+      {{
+        (forti_public_ip_prefix_fallback | int)
+        if (
+          forti_ip_source in ['auto', 'runtime']
+          and forti_runtime_ip | length > 0
+          and forti_runtime_ip != '0.0.0.0'
+        )
+        else (forti_mask_to_prefix[forti_cfg_mask] | default(forti_public_ip_prefix_fallback | int))
+      }}
+    forti_selected_valid_v4: >-
+      {{
+        forti_selected_ip_v4 | length > 0
+        and forti_selected_ip_v4 != '0.0.0.0'
+        and (forti_selected_ip_v4 is match('^\\d{1,3}(?:\\.\\d{1,3}){3}$'))
+      }}
+    forti_selected_is_private_v4: >-
+      {{
+        forti_selected_ip_v4 is match(
+          '^(10\\.|127\\.|169\\.254\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.)'
+        )
+      }}
+    forti_selected_is_cgnat_v4: "{{ forti_selected_ip_v4 is match('^100\\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.') }}"
+
+    forti_selected_source_v6: >-
+      {{
+        'runtime'
+        if (
+          forti_ip_source in ['auto', 'runtime']
+          and forti_runtime6_ip | length > 0
+          and forti_runtime6_ip != '::'
+        )
+        else 'config'
+      }}
+    forti_selected_ip_v6: >-
+      {{
+        forti_runtime6_ip
+        if (
+          forti_ip_source in ['auto', 'runtime']
+          and forti_runtime6_ip | length > 0
+          and forti_runtime6_ip != '::'
+        )
+        else forti_cfg6_ip
+      }}
+    forti_selected_prefix_v6: >-
+      {{
+        forti_runtime6_prefix
+        if (
+          forti_ip_source in ['auto', 'runtime']
+          and forti_runtime6_ip | length > 0
+          and forti_runtime6_ip != '::'
+        )
+        else forti_cfg6_prefix
+      }}
+    forti_selected_ip_v6_lc: "{{ forti_selected_ip_v6 | lower }}"
+    forti_selected_valid_v6: >-
+      {{
+        forti_selected_ip_v6 | length > 0
+        and (':' in forti_selected_ip_v6)
+        and forti_selected_ip_v6_lc not in ['::', '::1']
+      }}
+    forti_selected_is_private_v6: "{{ forti_selected_ip_v6_lc is match('^f[cd]') }}"
+    forti_selected_is_link_local_v6: "{{ forti_selected_ip_v6_lc is match('^fe[89ab]') }}"
+
+    forti_bulk_wan_ok: >-
+      {{
+        (not forti_sync_all_wan_only | bool)
+        or forti_cfg_role == 'wan'
+      }}
+    forti_bulk_public_ok_v4: >-
+      {{
+        (
+          (not forti_skip_private_ipv4_in_bulk | bool)
+          or (not forti_selected_is_private_v4)
+        )
+        and
+        (
+          (not forti_skip_cgnat_ipv4_in_bulk | bool)
+          or (not forti_selected_is_cgnat_v4)
+        )
+      }}
+    forti_bulk_public_ok_v6: >-
+      {{
+        (
+          (not forti_skip_private_ipv6_in_bulk | bool)
+          or (not forti_selected_is_private_v6)
+        )
+        and
+        (
+          (not forti_skip_link_local_ipv6_in_bulk | bool)
+          or (not forti_selected_is_link_local_v6)
+        )
+      }}
+    forti_target_netbox_interface: >-
+      {{
+        netbox_interface_map[item]
+        if (netbox_interface_map is mapping and item in netbox_interface_map)
+        else (
+          netbox_interface_name
+          if (
+            (not forti_sync_all_public_ips | bool)
+            and (forti_filtered_interfaces | length == 1)
+            and (netbox_interface_name | length > 0)
+          )
+          else item
+        )
+      }}
+    forti_keep_candidate_v4: >-
+      {{
+        forti_sync_ipv4 | bool
+        and forti_selected_valid_v4
+        and
+        (
+          (not forti_sync_all_public_ips | bool)
+          or (forti_bulk_wan_ok and forti_bulk_public_ok_v4)
+        )
+      }}
+    forti_keep_candidate_v6: >-
+      {{
+        forti_sync_ipv6 | bool
+        and forti_selected_valid_v6
+        and
+        (
+          (not forti_sync_all_public_ips | bool)
+          or (forti_bulk_wan_ok and forti_bulk_public_ok_v6)
+        )
+      }}
+    forti_sync_candidate_v4:
+      forti_interface: "{{ item }}"
+      netbox_interface: "{{ forti_target_netbox_interface }}"
+      family: ipv4
+      selected_ip: "{{ forti_selected_ip_v4 }}"
+      selected_prefix: "{{ forti_selected_prefix_v4 | int }}"
+      selected_cidr: "{{ forti_selected_ip_v4 }}/{{ forti_selected_prefix_v4 | int }}"
+      source: "{{ forti_selected_source_v4 }}"
+      role: "{{ forti_cfg_role }}"
+    forti_sync_candidate_v6:
+      forti_interface: "{{ item }}"
+      netbox_interface: "{{ forti_target_netbox_interface }}"
+      family: ipv6
+      selected_ip: "{{ forti_selected_ip_v6 }}"
+      selected_prefix: "{{ forti_selected_prefix_v6 | int }}"
+      selected_cidr: "{{ forti_selected_ip_v6 }}/{{ forti_selected_prefix_v6 | int }}"
+      source: "{{ forti_selected_source_v6 }}"
+      role: "{{ forti_cfg_role }}"
+    forti_sync_candidates_current: >-
+      {{
+        []
+        + ([forti_sync_candidate_v4] if forti_keep_candidate_v4 else [])
+        + ([forti_sync_candidate_v6] if forti_keep_candidate_v6 else [])
+      }}
+  loop: "{{ forti_filtered_interfaces }}"
+
+- name: Ensure at least one IP matched the selection
+  ansible.builtin.assert:
+    that:
+      - forti_sync_items | length > 0
+    fail_msg: >-
+      No interfaces matched for synchronization.
+      Check interface filters, auth permissions, and Forti API output.
+  when: forti_fail_when_no_matching_ips | bool
+
+- name: Warn when no interfaces matched and fail is disabled
+  ansible.builtin.debug:
+    msg: "No interfaces matched for synchronization; nothing to do."
+  when:
+    - not forti_fail_when_no_matching_ips | bool
+    - forti_sync_items | length == 0
+
+- name: Build NetBox auth headers
+  ansible.builtin.set_fact:
+    netbox_api_headers:
+      Authorization: "Token {{ netbox_token }}"
+      Accept: "application/json"
+  no_log: true
+  when: forti_sync_items | length > 0
+
+- name: Look up NetBox device by name
+  ansible.builtin.uri:
+    url: "{{ netbox_api_base_url }}/dcim/devices/?name={{ netbox_device_name | urlencode }}&limit=2"
+    method: GET
+    headers: "{{ netbox_api_headers }}"
+    validate_certs: "{{ netbox_validate_certs }}"
+    timeout: "{{ netbox_api_timeout | int }}"
+    return_content: true
+    status_code: 200
+  register: netbox_device_lookup
+  changed_when: false
+  when: forti_sync_items | length > 0
+
+- name: Ensure NetBox device lookup is unique
+  ansible.builtin.assert:
+    that:
+      - netbox_device_lookup.json.count | int == 1
+    fail_msg: "NetBox device '{{ netbox_device_name }}' was not unique (count={{ netbox_device_lookup.json.count | int }})."
+  when: forti_sync_items | length > 0
+
+- name: Store NetBox device ID
+  ansible.builtin.set_fact:
+    netbox_target_device_id: "{{ netbox_device_lookup.json.results[0].id | int }}"
+    netbox_synced_ip_ids: {}
+    netbox_synced_ip4_ids: {}
+    netbox_synced_ip6_ids: {}
+  when: forti_sync_items | length > 0
+
+- name: Synchronize each selected interface IP to NetBox
+  ansible.builtin.include_tasks: sync_one.yml
+  loop: "{{ forti_sync_items }}"
+  loop_control:
+    loop_var: forti_sync_item
+    label: "{{ forti_sync_item.forti_interface }}[{{ forti_sync_item.family }}] -> {{ forti_sync_item.netbox_interface }} ({{ forti_sync_item.selected_cidr }})"
+  when: forti_sync_items | length > 0
+
+- name: Pick target interface for primary IPv4 update
+  ansible.builtin.set_fact:
+    netbox_primary_ip_target_interface: >-
+      {{
+        netbox_primary_ip_interface
+        if netbox_primary_ip_interface | length > 0
+        else (
+          forti_sync_items[0].forti_interface
+          if forti_sync_items | length == 1
+          else ''
+        )
+      }}
+  when:
+    - netbox_set_primary_ip4 | bool
+    - forti_sync_items | length > 0
+
+- name: Resolve target primary IPv4 object id
+  ansible.builtin.set_fact:
+    netbox_primary_ip4_target_id: "{{ netbox_synced_ip4_ids[netbox_primary_ip_target_interface] | default(0) | int }}"
+  when:
+    - netbox_set_primary_ip4 | bool
+    - forti_sync_items | length > 0
+
+- name: Validate primary IPv4 target selection
+  ansible.builtin.assert:
+    that:
+      - netbox_primary_ip4_target_id | int > 0
+    fail_msg: >-
+      netbox_set_primary_ip4=true but no primary IP target was selected.
+      Set netbox_primary_ip_interface, or sync a single interface only.
+  when:
+    - netbox_set_primary_ip4 | bool
+    - forti_sync_items | length > 0
+
+- name: Read NetBox device details for primary IPv4 update
+  ansible.builtin.uri:
+    url: "{{ netbox_api_base_url }}/dcim/devices/{{ netbox_target_device_id }}/"
+    method: GET
+    headers: "{{ netbox_api_headers }}"
+    validate_certs: "{{ netbox_validate_certs }}"
+    timeout: "{{ netbox_api_timeout | int }}"
+    return_content: true
+    status_code: 200
+  register: netbox_device_detail
+  changed_when: false
+  when:
+    - netbox_set_primary_ip4 | bool or netbox_set_primary_ip6 | bool
+    - forti_sync_items | length > 0
+
+- name: Parse current primary IPv4 id
+  ansible.builtin.set_fact:
+    netbox_current_primary_ip4_id: "{{ netbox_device_detail.json.primary_ip4.id | default(0) | int }}"
+  when:
+    - netbox_set_primary_ip4 | bool
+    - forti_sync_items | length > 0
+
+- name: Set NetBox device primary IPv4
+  ansible.builtin.uri:
+    url: "{{ netbox_api_base_url }}/dcim/devices/{{ netbox_target_device_id }}/"
+    method: PATCH
+    headers: "{{ netbox_api_headers | combine({'Content-Type': 'application/json'}) }}"
+    body_format: json
+    body:
+      primary_ip4: "{{ netbox_primary_ip4_target_id | int }}"
+    validate_certs: "{{ netbox_validate_certs }}"
+    timeout: "{{ netbox_api_timeout | int }}"
+    return_content: true
+    status_code: 200
+  changed_when: true
+  when:
+    - netbox_set_primary_ip4 | bool
+    - forti_sync_items | length > 0
+    - netbox_current_primary_ip4_id | int != netbox_primary_ip4_target_id | int
+
+- name: Pick target interface for primary IPv6 update
+  ansible.builtin.set_fact:
+    netbox_primary_ip6_target_interface: >-
+      {{
+        netbox_primary_ip6_interface
+        if netbox_primary_ip6_interface | length > 0
+        else (
+          forti_sync_items[0].forti_interface
+          if forti_sync_items | length == 1
+          else ''
+        )
+      }}
+  when:
+    - netbox_set_primary_ip6 | bool
+    - forti_sync_items | length > 0
+
+- name: Resolve target primary IPv6 object id
+  ansible.builtin.set_fact:
+    netbox_primary_ip6_target_id: "{{ netbox_synced_ip6_ids[netbox_primary_ip6_target_interface] | default(0) | int }}"
+  when:
+    - netbox_set_primary_ip6 | bool
+    - forti_sync_items | length > 0
+
+- name: Validate primary IPv6 target selection
+  ansible.builtin.assert:
+    that:
+      - netbox_primary_ip6_target_id | int > 0
+    fail_msg: >-
+      netbox_set_primary_ip6=true but no primary IPv6 target was selected.
+      Set netbox_primary_ip6_interface, or sync a single interface only.
+  when:
+    - netbox_set_primary_ip6 | bool
+    - forti_sync_items | length > 0
+
+- name: Parse current primary IPv6 id
+  ansible.builtin.set_fact:
+    netbox_current_primary_ip6_id: "{{ netbox_device_detail.json.primary_ip6.id | default(0) | int }}"
+  when:
+    - netbox_set_primary_ip6 | bool
+    - forti_sync_items | length > 0
+
+- name: Set NetBox device primary IPv6
+  ansible.builtin.uri:
+    url: "{{ netbox_api_base_url }}/dcim/devices/{{ netbox_target_device_id }}/"
+    method: PATCH
+    headers: "{{ netbox_api_headers | combine({'Content-Type': 'application/json'}) }}"
+    body_format: json
+    body:
+      primary_ip6: "{{ netbox_primary_ip6_target_id | int }}"
+    validate_certs: "{{ netbox_validate_certs }}"
+    timeout: "{{ netbox_api_timeout | int }}"
+    return_content: true
+    status_code: 200
+  changed_when: true
+  when:
+    - netbox_set_primary_ip6 | bool
+    - forti_sync_items | length > 0
+    - netbox_current_primary_ip6_id | int != netbox_primary_ip6_target_id | int
+
+- name: Log out from FortiGate password session
+  ansible.builtin.uri:
+    url: "{{ forti_api_base_url }}/logout"
+    method: GET
+    headers:
+      Cookie: "{{ forti_login.cookies_string | default('') }}"
+    validate_certs: "{{ forti_validate_certs }}"
+    timeout: "{{ forti_api_timeout | int }}"
+    status_code:
+      - 200
+      - 302
+  changed_when: false
+  failed_when: false
+  no_log: true
+  when: forti_api_auth_method == "password"
+
+- name: Show synchronization summary
+  ansible.builtin.debug:
+    msg:
+      - "FortiGate host: {{ forti_host }} (vdom={{ forti_vdom }})"
+      - "Matched interface entries: {{ forti_sync_items | map(attribute='forti_interface') | list }}"
+      - "NetBox device: {{ netbox_device_name }}"
+      - "Synced IP IDs (all): {{ netbox_synced_ip_ids | default({}) }}"
+      - "Synced IPv4 IDs by interface: {{ netbox_synced_ip4_ids | default({}) }}"
+      - "Synced IPv6 IDs by interface: {{ netbox_synced_ip6_ids | default({}) }}"

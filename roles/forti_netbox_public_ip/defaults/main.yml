@@ -1,0 +1,95 @@
+# --- FortiGate source ---
+forti_host: ""
+forti_vdom: "root"
+forti_interface: "wan1"
+forti_interface_list: []
+forti_validate_certs: true
+forti_api_timeout: 30
+
+# Auth mode:
+# - token: works with a dedicated REST API Admin account
+# - password: works with username/password accounts such as super_admin_readonly
+forti_api_auth_method: "token"  # token | password
+forti_api_token: ""
+forti_api_username: ""
+forti_api_password: ""
+
+# IP source mode:
+# - config: use /api/v2/cmdb/system/interface/<if>
+# - runtime: use /api/v2/monitor/system/interface/select/
+# - auto: prefer runtime, fallback to config
+forti_ip_source: "auto"  # auto | config | runtime
+forti_public_ip_prefix_fallback: 32
+forti_ipv6_prefix_fallback: 128
+forti_sync_ipv4: true
+forti_sync_ipv6: true
+
+# Bulk sync mode:
+# - false: sync one interface (forti_interface, or forti_interface_list)
+# - true: auto-discover interfaces and sync all matching public IPv4 addresses
+forti_sync_all_public_ips: false
+forti_sync_all_wan_only: false
+forti_skip_private_ipv4_in_bulk: true
+forti_skip_cgnat_ipv4_in_bulk: true
+forti_skip_private_ipv6_in_bulk: true
+forti_skip_link_local_ipv6_in_bulk: true
+forti_interface_include_regex: ""
+forti_interface_exclude_regex: ""
+forti_fail_when_no_matching_ips: true
+
+# Convert "A.B.C.D MASK" from CMDB interface response to CIDR prefix.
+forti_mask_to_prefix:
+  "0.0.0.0": 0
+  "128.0.0.0": 1
+  "192.0.0.0": 2
+  "224.0.0.0": 3
+  "240.0.0.0": 4
+  "248.0.0.0": 5
+  "252.0.0.0": 6
+  "254.0.0.0": 7
+  "255.0.0.0": 8
+  "255.128.0.0": 9
+  "255.192.0.0": 10
+  "255.224.0.0": 11
+  "255.240.0.0": 12
+  "255.248.0.0": 13
+  "255.252.0.0": 14
+  "255.254.0.0": 15
+  "255.255.0.0": 16
+  "255.255.128.0": 17
+  "255.255.192.0": 18
+  "255.255.224.0": 19
+  "255.255.240.0": 20
+  "255.255.248.0": 21
+  "255.255.252.0": 22
+  "255.255.254.0": 23
+  "255.255.255.0": 24
+  "255.255.255.128": 25
+  "255.255.255.192": 26
+  "255.255.255.224": 27
+  "255.255.255.240": 28
+  "255.255.255.248": 29
+  "255.255.255.252": 30
+  "255.255.255.254": 31
+  "255.255.255.255": 32
+
+# --- NetBox destination ---
+netbox_url: ""
+netbox_token: ""
+netbox_validate_certs: true
+netbox_api_timeout: 30
+
+netbox_device_name: ""
+netbox_interface_name: ""
+netbox_ip_status: "active"
+netbox_ip_description: ""
+netbox_ip_dns_name: ""
+netbox_interface_map: {}
+
+# Safety and optional behavior
+netbox_allow_reassign: false
+netbox_skip_missing_interfaces: false
+netbox_set_primary_ip4: false
+netbox_primary_ip_interface: ""
+netbox_set_primary_ip6: false
+netbox_primary_ip6_interface: ""

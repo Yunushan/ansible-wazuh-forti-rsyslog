@@ -19,6 +19,7 @@ It focuses on **configuration** (rsyslog + Wazuh ingestion). It does **not** ins
 - Configures **logrotate** to keep logs for a configurable duration (daily rotation by default)
 - Adds a `<localfile>` entry to **Wazuh** so the Wazuh manager ingests the Fortinet log file
 - Adds local Wazuh rules so high/critical Fortinet events appear in alerts (configurable)
+- Optionally syncs FortiGate WAN/public IPv4/IPv6 addresses to NetBox interfaces
 
 ---
 
@@ -30,17 +31,23 @@ It focuses on **configuration** (rsyslog + Wazuh ingestion). It does **not** ins
 ├─ inventory/
 │  ├─ hosts.ini
 │  └─ group_vars/
-│     └─ wazuh.yml
+│     ├─ wazuh.yml
+│     └─ forti_netbox.yml
 ├─ playbooks/
-│  └─ site.yml
+│  ├─ site.yml
+│  └─ forti_netbox_public_ip.yml
 └─ roles/
-   └─ forti_rsyslog/
+   ├─ forti_rsyslog/
+   │  ├─ defaults/main.yml
+   │  ├─ tasks/main.yml
+   │  ├─ handlers/main.yml
+   │  ├─ templates/
+   │  │  ├─ fortinet-rsyslog.conf.j2
+   │  │  └─ fortinet-logrotate.conf.j2
+   │  └─ meta/main.yml
+   └─ forti_netbox_public_ip/
       ├─ defaults/main.yml
       ├─ tasks/main.yml
-      ├─ handlers/main.yml
-      ├─ templates/
-      │  ├─ fortinet-rsyslog.conf.j2
-      │  └─ fortinet-logrotate.conf.j2
       └─ meta/main.yml
 ```
 
@@ -71,6 +78,43 @@ If the playbook warns that the Wazuh service was not detected, restart it manual
 ```bash
 systemctl restart wazuh-manager
 ```
+
+---
+
+## Optional: FortiGate WAN/public IP -> NetBox
+
+This repository also includes `playbooks/forti_netbox_public_ip.yml` to read FortiGate interface IPv4/IPv6 data and upsert it to NetBox.
+
+Auth options supported for FortiGate:
+
+- `forti_api_auth_method: token` (recommended; REST API Admin token)
+- `forti_api_auth_method: password` (username/password, including `super_admin_readonly`)
+
+How to run:
+
+1. Edit `inventory/group_vars/forti_netbox.yml`.
+2. Set Forti and NetBox values.
+3. Run:
+
+```bash
+ansible-playbook playbooks/forti_netbox_public_ip.yml
+```
+
+Where it publishes in NetBox:
+
+- Creates or updates records in `IPAM > IP Addresses` (`/api/ipam/ip-addresses/`).
+- Assigns each synced IP to `DCIM > Interfaces` (`assigned_object_type=dcim.interface`) on `netbox_device_name`.
+- Interface target defaults to same name as Forti interface; override with `netbox_interface_map`.
+- Optionally sets device `primary_ip4` when `netbox_set_primary_ip4: true`.
+- Optionally sets device `primary_ip6` when `netbox_set_primary_ip6: true`.
+
+Notes:
+
+- `forti_sync_all_public_ips: true` auto-discovers and syncs all matching public IPv4/IPv6 addresses.
+- `forti_sync_ipv4` / `forti_sync_ipv6` control address families.
+- `forti_ip_source: auto` uses runtime monitor API first, then config API fallback.
+- `netbox_allow_reassign: false` protects against moving an IP already assigned elsewhere.
+- This syncs the FortiGate interface IP. If FortiGate is behind upstream NAT/CGNAT, it is not the true internet egress IP.
 
 ---
 
@@ -518,6 +562,45 @@ Run:
 
 ```bash
 ansible-playbook playbooks/site.yml
+```
+
+For NetBox sync, edit `inventory/group_vars/forti_netbox.yml` and run:
+
+```yaml
+# Sync all detected public IPs (not only one interface)
+forti_sync_all_public_ips: true
+forti_sync_ipv4: true
+forti_sync_ipv6: true
+forti_skip_private_ipv4_in_bulk: true
+forti_skip_cgnat_ipv4_in_bulk: true
+forti_skip_private_ipv6_in_bulk: true
+forti_skip_link_local_ipv6_in_bulk: true
+
+# Option 2: username/password (e.g. super_admin_readonly)
+forti_api_auth_method: password
+forti_api_username: super_admin_readonly_user
+forti_api_password: "{{ vault_forti_api_password }}"
+# Or token mode:
+# forti_api_auth_method: token
+# forti_api_token: "{{ vault_forti_api_token }}"
+
+netbox_url: https://netbox.example.com
+netbox_token: "{{ vault_netbox_token }}"
+netbox_device_name: FGT-HQ
+netbox_interface_name: ""
+netbox_skip_missing_interfaces: true
+# netbox_interface_map:
+#   wan1: uplink-1
+#   wan2: uplink-2
+# Optional
+# netbox_set_primary_ip4: true
+# netbox_primary_ip_interface: wan1
+# netbox_set_primary_ip6: true
+# netbox_primary_ip6_interface: wan1
+```
+
+```bash
+ansible-playbook playbooks/forti_netbox_public_ip.yml
 ```
 
 ---
